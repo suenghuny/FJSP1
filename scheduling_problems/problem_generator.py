@@ -44,6 +44,19 @@ for k in range(len(alternative_machine_list)):
 num_job_type = len(ops_type_list)
 num_machines = np.max([np.max([eval(m) for m in machine_list]) for machine_list in alternative_machine_list])+1
 
+
+workcenter = list()
+for machine_list in alternative_machine_list:
+    for m in machine_list:
+        if eval(m) not in workcenter:
+            workcenter.append(eval(m))
+workcenter_name = dict()
+for i in range(len(workcenter)):
+    for m in workcenter[i]:
+        workcenter_name[m] = i
+print(workcenter_name)
+
+
 sp1 = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
 problems = [sp1]
 tp1 = [7, 2, 13,2, 8, 10, 2, 8,3,4, 1, 2, 4,4,10]

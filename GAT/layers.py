@@ -10,7 +10,7 @@ class GraphAttentionLayer(nn.Module):
     """
     Simple GAT layer, similar to https://arxiv.org/abs/1710.10903
     """
-    def __init__(self, in_features, out_features, dropout, alpha, teleport_probability, concat=True):
+    def __init__(self, in_features, out_features, dropout, alpha, teleport_probability, n_node,  batch_size, concat=True):
         super(GraphAttentionLayer, self).__init__()
         self.dropout = dropout
         self.in_features = in_features
@@ -26,6 +26,19 @@ class GraphAttentionLayer(nn.Module):
         self.c = nn.Parameter(torch.empty(size=(out_features, 1)))
         nn.init.xavier_uniform_(self.c.data, gain=1.414)
         self.leakyrelu = nn.LeakyReLU(self.alpha)
+        self.adj = torch.ones([n_node,n_node]).to(device).long()
+
+        self.adj_batch = torch.ones([batch_size, n_node,n_node]).to(device).long()
+
+        # print(time.time()-start)
+        # adj_du = time.time()-start
+
+        # # start = time.time()
+        # adj = torch.stack(adj)
+        # adj = adj.to(device).long()
+
+
+
 
     def edge_index_into_adjacency_matrix(self, n_node_feature, edge_index):
         adjacency_matrix = torch.zeros([n_node_feature, n_node_feature])
@@ -39,11 +52,8 @@ class GraphAttentionLayer(nn.Module):
     def forward(self, h, edge_index, n_node_features, mini_batch = False):
 
         if mini_batch == False:
-            adj = torch.sparse_coo_tensor(edge_index,
-                                           torch.ones(torch.tensor(edge_index).shape[1]).to(device),
-                                           (n_node_features, n_node_features)).to_dense().to(device)
+            adj = self.adj
 
-            adj = adj.to(device).long()
             Wh = torch.mm(h, self.W)                                                    # adj.shape : (n_node, n_node)
 
                                                                                         # h.shape : (n_node, feature_size), self.W.shape : (feature_size, hidden_size)
@@ -67,28 +77,28 @@ class GraphAttentionLayer(nn.Module):
             #     self.edge_index_into_adjacency_matrix(n_node_features, edge_index[m]) for m in range(batch_size)]
             # print(torch.tensor(edge_index[0]).shape, torch.ones(len(edge_index[0][0])).shape)
             # print(torch.tensor(edge_index[3]).shape, torch.ones(len(edge_index[0][3])))
+            # import time
+            # start = time.time()
 
             W = self.W.expand([batch_size, self.in_features, self.out_features])
             Wh = torch.bmm(h, W)  # h.shape: (1, in_features), Wh.shape: (in_features, out_features)
             e = self._prepare_attentional_mechanism_input(Wh, mini_batch = mini_batch)  # e.shape: 1, num_enemy+1
             zero_vec = -9e15 * torch.ones_like(e)
+            #cal_du = time.time() - start
 
 
 
+            #start = time.time()
+            adj = self.adj_batch
+            #stack_du = time.time()-start
 
-            adj = [torch.sparse_coo_tensor(edge_index[m],
-                                           torch.ones(torch.tensor(edge_index[m]).shape[1]).to(device),
-                                           (n_node_features, n_node_features)).to_dense().to(device) for m in range(batch_size)]
-
-            adj = torch.stack(adj)
-            adj = adj.to(device).long()
-
+            #start = time.time()
             attention = torch.where(adj > 0, e, zero_vec)  # adj.shape: 1, num_enemy
 
             attention = F.softmax(attention, dim=2)
-
+            #attention_du = time.time()-start
             h_prime = self.teleport_probability * torch.bmm(attention, Wh) + (1-self.teleport_probability) * Wh
-            #print(attention_duration, adj1_duration)
+            #print(cal_du, adj_du, stack_du, attention_du)
 
 
         if self.concat:

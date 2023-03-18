@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from GAT.layers import GraphAttentionLayer, device
 
 class GAT(nn.Module):
-    def __init__(self, nfeat, nhid, nclass, dropout, alpha, nheads, teleport_probability, mode = 'observation'):
+    def __init__(self, nfeat, nhid, nclass, dropout, alpha, nheads, teleport_probability, n_node, batch_size, mode = 'observation'):
         """Dense version of GAT."""
         super(GAT, self).__init__()
         self.dropout = dropout
@@ -14,26 +14,26 @@ class GAT(nn.Module):
 
 
         if mode == 'communication':
-            self.attentions1 = [GraphAttentionLayer(nfeat, nhid, dropout=dropout, alpha=alpha, concat=True, teleport_probability=self.teleport_probability).to(device)
+            self.attentions1 = [GraphAttentionLayer(nfeat, nhid, dropout=dropout, alpha=alpha, concat=True, teleport_probability=self.teleport_probability, n_node=n_node, batch_size = batch_size).to(device)
                                 for _ in range(nheads)]
             for i, attention in enumerate(self.attentions1):
                 self.add_module('attention_{}'.format(i), attention)
-            self.attentions2 = [GraphAttentionLayer(nhid * nheads, nhid, dropout=dropout, alpha=alpha, concat=True, teleport_probability=self.teleport_probability).to(device) for _ in
+            self.attentions2 = [GraphAttentionLayer(nhid * nheads, nhid, dropout=dropout, alpha=alpha, concat=True, teleport_probability=self.teleport_probability, n_node=n_node,batch_size = batch_size).to(device) for _ in
                 range(nheads)]
 
             for i, attention in enumerate(self.attentions2):
                 self.add_module('attention_{}'.format(i), attention)
 
-            self.out_att = GraphAttentionLayer(nhid * nheads, nclass, dropout=dropout, alpha=alpha, concat=False, teleport_probability=self.teleport_probability).to(
+            self.out_att = GraphAttentionLayer(nhid * nheads, nclass, dropout=dropout, alpha=alpha, concat=False, teleport_probability=self.teleport_probability, n_node = n_node, batch_size = batch_size).to(
                 device)
 
 
         if mode == 'observation':
-            self.attentions1 = [GraphAttentionLayer(nfeat, nhid, dropout=dropout, alpha=alpha, concat=True, teleport_probability=self.teleport_probability).to(device)
+            self.attentions1 = [GraphAttentionLayer(nfeat, nhid, dropout=dropout, alpha=alpha, concat=True, teleport_probability=self.teleport_probability, n_node = n_node, batch_size = batch_size).to(device)
                                 for _ in range(nheads)]
             for i, attention in enumerate(self.attentions1):
                 self.add_module('attention_{}'.format(i), attention)
-            self.out_att = GraphAttentionLayer(nhid * nheads, nclass, dropout=dropout, alpha=alpha, concat=False, teleport_probability=self.teleport_probability).to(
+            self.out_att = GraphAttentionLayer(nhid * nheads, nclass, dropout=dropout, alpha=alpha, concat=False, teleport_probability=self.teleport_probability, n_node = n_node, batch_size = batch_size).to(
                 device)
 
     #

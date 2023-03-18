@@ -5,8 +5,9 @@ import torch
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
-from scheduling_problems.problem_generator import num_machines, num_job_type, soe, process_time_list, ops_name_array, ops_name_list, alternative_machine_list, setup_list, problems, ops_type_list
+from scheduling_problems.problem_generator import workcenter, num_machines, num_job_type, soe, process_time_list, ops_name_array, ops_name_list, alternative_machine_list, setup_list, problems, ops_type_list, workcenter_name
 import numpy as np
+
 np.random.seed(42)
 
 class Operation():
@@ -46,6 +47,7 @@ for ops in flatten_all_ops_list:
         avail_ops_by_machine[m].append(ops.idx)
 #print(avail_ops_by_machine[0])
 # print("operation 개수", len(flatten_all_ops_list))
+total_num_ops = sum(ops_length_list)
 num_jobs = len(process_time_list)
 max_ops_length = max(ops_length_list)
 # Job 객체는 Operation 정보 등을 기록함
@@ -78,10 +80,11 @@ class Job():
 # Machine 객체이고 idle, setup, process 시간 등을 기록함
 class Machine(simpy.Resource):
     global all_ops_list, flatten_all_ops_lis
-    def __init__(self, env, name, waiting_job_store, production_list, capacity=1, home = None):
+    def __init__(self, env, name, waiting_job_store, production_list, workcenter, capacity=1, home = None):
         super().__init__(env, capacity=capacity)
         self.env = env
         self.home = home
+        self.workcenter = workcenter
         self.name = name
         self.recent_action = 0
         choices = list()
@@ -181,8 +184,9 @@ class Process:
                                             i,
                                             self.waiting_job_store,
                                             self.production_list,
+                                            workcenter_name[i],
                                             home = self)
-                                    for i in range(num_machines)]
+                                    for i in range(num_machines) ]
         self.dummy_res_store = list()
         for machine in self.machine_store.items:
             self.dummy_res_store.append(machine)
@@ -307,7 +311,7 @@ class Process:
             self.decision_time_step = self.env.event()
 
 def setup_get(machine, ops):
-    if machine.name in [0,1,2,3,4,5,6,7]:#[0,1,2,3,4,5,6,7,8,9]:#[0,1,2,3,4,5,6,7]:#[0,1,2,3,4,5,6,7,8,9]:#[0,1,2,3,4,5,6,7]:#[0,1,2,3,4,5,6,7,8,9]:
+    if machine.workcenter ==0:#[0,1,2,3,4,5,6,7,8,9]:#[0,1,2,3,4,5,6,7]:#[0,1,2,3,4,5,6,7,8,9]:#[0,1,2,3,4,5,6,7]:#[0,1,2,3,4,5,6,7,8,9]:
         if len(machine.setup) == 4:
             machine_setup_jobtype = machine.setup[:2]
             machine_setup_type = flatten_all_ops_list[ops_name_list.index(machine.setup)].ops_type
@@ -397,7 +401,7 @@ class RL_ENV:
         num_agents = num_machines
         env_info = {"n_agents" : num_machines,
                     "job_feature_shape": num_jobs + max_ops_length,  # + self.n_agents,
-                    "machine_feature_shape" : 8 + num_jobs + max_ops_length, # + self.n_agents,
+                    "machine_feature_shape" : 8 + num_jobs + max_ops_length+ len(workcenter)+ total_num_ops, # + self.n_agents,
                     "n_actions": len(ops_name_list) + 1
                     }
 
@@ -493,6 +497,10 @@ class RL_ENV:
 
     def get_node_feature_machine(self):
         node_features = list()
+        workcenter_encodes = np.eye(len(workcenter))
+        self.waiting_ops = [j.operations[0].idx for j in self.proc.waiting_job_store.items]
+        num_waiting_operations = [self.waiting_ops.count(ops)/self.proc.production_list[flatten_all_ops_list[ops_name_list.index(ops)].job_type]
+                                    if ops in self.waiting_ops else 0 for ops in ops_name_list]
         for i in range(self.n_agents):
             machine = self.proc.dummy_res_store[i]
             if machine.status == 'setup':
@@ -524,6 +532,7 @@ class RL_ENV:
                 b = int(idx[3])
 
             setup = np.concatenate([np.eye(num_jobs)[a], np.eye(max_ops_length)[b]])
+
             if machine.last_recorded_idle== None:
                 first_moment_idle = 0
             else:
@@ -544,7 +553,7 @@ class RL_ENV:
                                                              first_moment_setup/60,
                                                              first_moment_process/60,
                                                              setup_remain_time,
-                                                             process_remain_time]), setup])
+                                                             process_remain_time]), setup, workcenter_encodes[machine.workcenter], num_waiting_operations])
             else:
                 node_feature = np.concatenate([np.array([machine.idle_history/self.env.now,
                                         machine.setup_history/self.env.now,
@@ -553,12 +562,13 @@ class RL_ENV:
                                                              first_moment_setup/60,
                                                              first_moment_process/60,
                                                              setup_remain_time,
-                                                             process_remain_time]), setup])
+                                                             process_remain_time]), setup, workcenter_encodes[machine.workcenter], num_waiting_operations])
+
             node_features.append(node_feature)
         return node_features
 
     def get_heterogeneous_graph(self):
-        return self.get_node_feature_job(), self.get_node_feature_machine(), self.get_edge_index_job_machine(), self.get_edge_index_machine_machine()
+        return self.get_node_feature_machine(), self.get_edge_index_machine_machine()
 
     def reset(self):
 

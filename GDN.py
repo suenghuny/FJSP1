@@ -88,10 +88,10 @@ class Replay_Buffer:
     def pop(self):
         self.buffer.pop()
 
-    def memory(self, node_feature_job, node_feature_machine, edge_index_job, edge_index_machine, action, reward, done, avail_action):
-        self.buffer[0].append(node_feature_job)
+    def memory(self, node_feature_machine, edge_index_machine, action, reward, done, avail_action):
+        #self.buffer[0].append(node_feature_job)
         self.buffer[1].append(node_feature_machine)
-        self.buffer[2].append(edge_index_job)
+        #self.buffer[2].append(edge_index_job)
         self.buffer[3].append(edge_index_machine)
         self.buffer[4].append(action)
         self.buffer[5].append(reward)
@@ -114,12 +114,12 @@ class Replay_Buffer:
         # self.buffer[6].append(done)
         # self.buffer[7].append(avail_action)
         for s in batch_idx:
-            if cat == 'node_feature_job':
-                yield datas[0][s]
+            # if cat == 'node_feature_job':
+            #     yield datas[0][s]
             if cat == 'node_feature_machine':
                 yield datas[1][s]
-            if cat == 'edge_index_job':
-                yield datas[2][s]
+            # if cat == 'edge_index_job':
+            #     yield datas[2][s]
             if cat == 'edge_index_machine':
                 yield datas[3][s]
             if cat == 'action':
@@ -129,12 +129,12 @@ class Replay_Buffer:
             if cat == 'done':
                 yield datas[6][s]
 
-            if cat == 'node_feature_job_next':
-                yield datas[0][s+1]
+            # if cat == 'node_feature_job_next':
+            #     yield datas[0][s+1]
             if cat == 'node_feature_machine_next':
                 yield datas[1][s+1]
-            if cat == 'edge_index_job_next':
-                yield datas[2][s+1]
+            # if cat == 'edge_index_job_next':
+            #     yield datas[2][s+1]
             if cat == 'edge_index_machine_next':
                 yield datas[3][s+1]
             if cat == 'avail_action_next':
@@ -148,18 +148,18 @@ class Replay_Buffer:
 
         sampled_batch_idx = random.sample(step_count_list, self.batch_size)
 
-        node_feature_job = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='node_feature_job')
-        node_features_job = list(node_feature_job)
+        # node_feature_job = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='node_feature_job')
+        # node_features_job = list(node_feature_job)
 
         node_feature_machine = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='node_feature_machine')
         node_features_machine = list(node_feature_machine)
 
         action = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='action')
         actions = list(action)
-
-
-        edge_index_job = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='edge_index_job')
-        edge_indices_job = list(edge_index_job)
+        #
+        #
+        # edge_index_job = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='edge_index_job')
+        # edge_indices_job = list(edge_index_job)
 
 
 
@@ -177,9 +177,9 @@ class Replay_Buffer:
         dones = list(done)
 
 
-
-        node_feature_job_next = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='node_feature_job_next')
-        node_features_job_next = list(node_feature_job_next)
+        #
+        # node_feature_job_next = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='node_feature_job_next')
+        # node_features_job_next = list(node_feature_job_next)
 
 
 
@@ -188,8 +188,8 @@ class Replay_Buffer:
 
 
 
-        edge_index_job_next = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='edge_index_job_next')
-        edge_indices_job_next = list(edge_index_job_next)
+        # edge_index_job_next = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='edge_index_job_next')
+        # edge_indices_job_next = list(edge_index_job_next)
 
 
 
@@ -199,7 +199,7 @@ class Replay_Buffer:
         avail_action_next = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='avail_action_next')
         avail_actions_next = list(avail_action_next)
 
-        return node_features_job, node_features_machine, edge_indices_job, edge_indices_machine, actions, rewards, dones, node_features_job_next, node_features_machine_next, edge_indices_job_next, edge_indices_machine_next, avail_actions_next
+        return node_features_machine,  edge_indices_machine, actions, rewards, dones,  node_features_machine_next, edge_indices_machine_next, avail_actions_next
 
 class Agent:
     def __init__(self,
@@ -280,16 +280,20 @@ class Agent:
                                       dropout = dropout,
                                       alpha = 0.2,
                                       mode = 'observation',
+                                    n_node = self.num_agent,
+                                    batch_size=self.batch_size,
                                       teleport_probability = self.teleport_probability).to(device)
 
 
-            self.func_machine_comm = GAT(nfeat = n_representation_machine+n_representation_job+10,
+            self.func_machine_comm = GAT(nfeat = n_representation_machine,
                                       nhid = hidden_size_comm,
                                       nheads = n_multi_head,
                                       nclass = n_representation_machine+20,
                                       dropout = dropout,
                                       alpha = 0.2,
-                                      mode = 'communication',
+                                      mode = 'observation',
+                                         n_node = self.num_agent,
+                                         batch_size = self.batch_size,
                                       teleport_probability = self.teleport_probability).to(device)   # 수정사항
 
             self.Q = Network(n_representation_machine+20, hidden_size_Q, self.action_size).to(device)
@@ -348,40 +352,40 @@ class Agent:
 
 
 
-    def get_node_representation(self, node_feature_job, node_feature_machine, edge_index_job, edge_index_machine, n_node_features_job, n_node_features_machine, mini_batch = False):
+    def get_node_representation(self, node_feature_machine, edge_index_machine, n_node_features_machine, mini_batch = False):
         if self.GNN == 'GAT':
             if mini_batch == False:
                 with torch.no_grad():
-                    node_feature_job = torch.tensor(node_feature_job,
-                                                    dtype=torch.float,
-                                                    device=device)
+                    # node_feature_job = torch.tensor(node_feature_job,
+                    #                                 dtype=torch.float,
+                    #                                 device=device)
                     node_feature_machine = torch.tensor(node_feature_machine,
                                                         dtype=torch.float,
                                                         device=device)
-                    node_embedding_job_obs = self.node_representation_job_obs(node_feature_job)
+                    #node_embedding_job_obs = self.node_representation_job_obs(node_feature_job)
                     #print(node_feature_machine.shape, self.num_agent, self.feature_size_machine)
                     node_embedding_machine_obs = self.node_representation(node_feature_machine)
-                    edge_index_job = torch.tensor(edge_index_job, dtype=torch.long, device=device)
-                    h_job_obs = self.func_job_obs(node_embedding_job_obs, edge_index_job, n_node_features_job, mini_batch = mini_batch)
+                    #edge_index_job = torch.tensor(edge_index_job, dtype=torch.long, device=device)
+                    #h_job_obs = self.func_job_obs(node_embedding_job_obs, edge_index_job, n_node_features_job, mini_batch = mini_batch)
 
                     edge_index_machine = torch.tensor(edge_index_machine, dtype=torch.long, device=device)
                     #print(node_embedding_machine_obs.shape, node_embedding_job_obs.shape, h_job_obs.shape)
-                    cat_feature = torch.concat([node_embedding_machine_obs, h_job_obs[:self.num_agent, :]], dim=1)
-                    node_representation = self.func_machine_comm(cat_feature, edge_index_machine, n_node_features_machine, mini_batch = mini_batch)
+                    #cat_feature = torch.concat([node_embedding_machine_obs, h_job_obs[:self.num_agent, :]], dim=1)
+                    node_representation = self.func_machine_comm(node_embedding_machine_obs, edge_index_machine, n_node_features_machine, mini_batch = mini_batch)
             else:
-                node_feature_job = torch.tensor(node_feature_job, dtype=torch.float, device=device)
+                #node_feature_job = torch.tensor(node_feature_job, dtype=torch.float, device=device)
                 node_feature_machine = torch.tensor(node_feature_machine, dtype=torch.float, device=device)
 
-                node_embedding_job_obs = self.node_representation_job_obs(node_feature_job)
+                #node_embedding_job_obs = self.node_representation_job_obs(node_feature_job)
                 node_embedding_machine_obs = self.node_representation(node_feature_machine)
 
                 #edge_index_job = torch.tensor(edge_index_job, dtype=torch.long, device=device)
-                h_job_obs = self.func_job_obs(node_embedding_job_obs, edge_index_job, n_node_features_job,
-                                              mini_batch=mini_batch)
+                # h_job_obs = self.func_job_obs(node_embedding_job_obs, edge_index_job, n_node_features_job,
+                #                               mini_batch=mini_batch)
 
                 edge_index_machine = torch.tensor(edge_index_machine, dtype=torch.long, device=device)
-                cat_feature = torch.concat([node_embedding_machine_obs, h_job_obs[:, :self.num_agent, :]], dim=2)
-                node_representation = self.func_machine_comm(cat_feature, edge_index_machine, n_node_features_machine,
+                #cat_feature = torch.concat([node_embedding_machine_obs, h_job_obs[:, :self.num_agent, :]], dim=2)
+                node_representation = self.func_machine_comm(node_embedding_machine_obs, edge_index_machine, n_node_features_machine,
                                                           mini_batch=mini_batch)
 
             """
@@ -490,24 +494,24 @@ class Agent:
 
 
     def learn(self, regularizer):
-        node_features_job, node_features_machine, edge_indices_job, edge_indices_machine, actions, rewards, dones, node_features_job_next, node_features_machine_next, edge_indices_job_next, edge_indices_machine_next, avail_actions_next = self.buffer.sample()
+        node_features_machine, edge_indices_machine, actions, rewards, dones, node_features_machine_next,edge_indices_machine_next, avail_actions_next = self.buffer.sample()
 
         dummy = [0] * self.feature_size_job
 
-        max_job_length = np.max([np.max([len(nfj) for nfj in node_features_job]), np.max([len(nfj) for nfj in node_features_job_next])])
-        import time
-        start = time.time()
-        for nfj in node_features_job:
-            if len(nfj) <= max_job_length:
-                for j in range(max_job_length- len(nfj)):
-                    nfj.append(dummy)
+        # max_job_length = np.max([np.max([len(nfj) for nfj in node_features_job]), np.max([len(nfj) for nfj in node_features_job_next])])
+        # import time
+        # start = time.time()
+        # for nfj in node_features_job:
+        #     if len(nfj) <= max_job_length:
+        #         for j in range(max_job_length- len(nfj)):
+        #             nfj.append(dummy)
+        #
+        # for nfj in node_features_job_next:
+        #     if len(nfj) <= max_job_length:
+        #         for j in range(max_job_length- len(nfj)):
+        #             nfj.append(dummy)
 
-        for nfj in node_features_job_next:
-            if len(nfj) <= max_job_length:
-                for j in range(max_job_length- len(nfj)):
-                    nfj.append(dummy)
-
-        remain_duration = time.time() - start
+        #remain_duration = time.time() - start
 
 
 
@@ -518,30 +522,28 @@ class Agent:
         avail_actions_next : batch_size x num_agents x action_size 
         """
 
-        n_node_features_job = torch.tensor(node_features_job).shape[1]
+        #n_node_features_job = torch.tensor(node_features_job).shape[1]
         n_node_features_machine = torch.tensor(node_features_machine).shape[1]
 
-        start = time.time()
-        obs = self.get_node_representation(node_features_job,
+        #start = time.time()
+        obs = self.get_node_representation(
                                            node_features_machine,
-                                           edge_indices_job,
+
                                            edge_indices_machine,
-                                           n_node_features_job,
                                            n_node_features_machine,
                                            mini_batch=True)
 
-        obs_next = self.get_node_representation(node_features_job_next,
+        obs_next = self.get_node_representation(
                                                 node_features_machine_next,
-                                                edge_indices_job_next,
+
                                                 edge_indices_machine_next,
-                                                n_node_features_job,
                                                 n_node_features_machine,
                                                 mini_batch=True)
-        embedding_duration = time.time()-start
+        #embedding_duration = time.time()-start
         dones = torch.tensor(dones, device = device, dtype = torch.float)
         rewards = torch.tensor(rewards, device = device, dtype = torch.float)
 
-        start = time.time()
+        #start = time.time()
         q = [self.cal_Q(obs=obs,
                          actions=actions,
                          avail_actions_next=None,
@@ -554,9 +556,9 @@ class Agent:
                              agent_id=agent_id,
                              target=True) for agent_id in range(self.num_agent)]
 
-        q_duration = time.time() - start
-
-        start = time.time()
+        # q_duration = time.time() - start
+        #
+        # start = time.time()
         q_tot = torch.stack(q, dim=1)
         q_tot_tar = torch.stack(q_tar, dim=1)
         q_tot = self.VDN(q_tot)
@@ -572,7 +574,7 @@ class Agent:
         #     self.Q_tar.load_state_dict(self.Q.state_dict())
         #     self.VDN_target.load_state_dict(self.VDN.state_dict())
         tau = 1e-3
-        backward_duration = time.time() - start
+        #backward_duration = time.time() - start
 
         #print("소요시간", remain_duration, embedding_duration, q_duration, backward_duration)
 

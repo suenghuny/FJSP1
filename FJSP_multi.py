@@ -7,7 +7,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 
-from scheduling_problems.problem_generator import num_machines, num_job_type, num_jobs, soe, process_time_list, ops_name_array, ops_name_list, alternative_machine_list, setup_list, problems, ops_type_list
+from scheduling_problems.problem_generator import num_machines, num_job_type,  soe, process_time_list, ops_name_array, ops_name_list, alternative_machine_list, setup_list, problems, ops_type_list
 #print(alternative_machine_list[0])
 
 import numpy as np
@@ -339,7 +339,7 @@ class Process:
             self.decision_time_step = self.env.event()
 
 def setup_get(machine, ops):
-    if machine.name in [0,1,2,3,4,5,6,7,8,9]:#[0,1,2,3,4,5,6,7]:#[0,1,2,3,4,5,6,7,8,9]:#[0,1,2,3,4,5,6,7]:#[0,1,2,3,4,5,6,7,8,9]:
+    if machine.name in [0,1,2,3,4]:#[0,1,2,3,4,5,6,7]:#[0,1,2,3,4,5,6,7,8,9]:#[0,1,2,3,4,5,6,7]:#[0,1,2,3,4,5,6,7,8,9]:
         if len(machine.setup) == 4:
             machine_setup_jobtype = machine.setup[:2]
             machine_setup_type = flatten_all_ops_list[ops_name_list.index(machine.setup)].ops_type
