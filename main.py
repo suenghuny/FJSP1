@@ -58,7 +58,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
     eval = False
     start = time.time()
 
-
+    sum_learn = 0
 
     while not done:
         # self.get_node_feature_job(), self.get_node_feature_machine(), self.get_edge_index_job_machine(), self.get_edge_index_machine_machine()
@@ -77,7 +77,9 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
 
         avail_action = env.get_avail_actions()
         action = agent.sample_action(node_representation, avail_action, epsilon)
+
         reward, done, info = env.step(action)
+
         agent.buffer.memory(node_feature_machine,edge_index_machine, action, reward, done, avail_action)
         episode_reward += reward
 
@@ -87,7 +89,9 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
             eval = True
 
         if e >= train_start:
+            st = time.time()
             loss = agent.learn(regularizer=0)
+            sum_learn += time.time()-st
             losses.append(loss.detach().item())
         if epsilon >= min_epsilon:
             epsilon = epsilon - anneal_epsilon
@@ -95,11 +99,12 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
             epsilon = min_epsilon
         #print(episode_reward, done)
     if e >= train_start:
-        print("Total reward in episode {} = {}, epsilon : {}, time_step : {}, episode_duration : {}".format(
+        print("Total reward in episode {} = {}, epsilon : {}, time_step : {}, episode_duration : {}, training_duration : {}".format(
                                                                                                 e,
                                                                                                 np.round(episode_reward, 3),
                                                                                                 np.round(epsilon, 3),
-                                                                                                t, np.round(time.time()-start, 3)))
+                                                                                                t, np.round(time.time()-start, 3),
+        sum_learn))
     return episode_reward, epsilon, t, eval
 
 def main():

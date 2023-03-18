@@ -334,6 +334,7 @@ class Agent:
                                list(self.node_representation.parameters()) + \
                                list(self.action_representation.parameters())
         self.optimizer = optim.RMSprop(self.eval_params, lr=learning_rate)
+        self.time_check =[[],[]]
 
 
 
@@ -542,8 +543,8 @@ class Agent:
         #embedding_duration = time.time()-start
         dones = torch.tensor(dones, device = device, dtype = torch.float)
         rewards = torch.tensor(rewards, device = device, dtype = torch.float)
-
-        #start = time.time()
+        import time
+        start = time.time()
         q = [self.cal_Q(obs=obs,
                          actions=actions,
                          avail_actions_next=None,
@@ -556,8 +557,9 @@ class Agent:
                              agent_id=agent_id,
                              target=True) for agent_id in range(self.num_agent)]
 
-        # q_duration = time.time() - start
-        #
+        q_duration = time.time() - start
+
+
         # start = time.time()
         q_tot = torch.stack(q, dim=1)
         q_tot_tar = torch.stack(q_tar, dim=1)
