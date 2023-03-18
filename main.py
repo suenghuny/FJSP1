@@ -128,19 +128,18 @@ def main():
     teleport_probability = cfg.teleport_probability
     gtn_beta = cfg.gtn_beta
     anneal_epsilon = (epsilon - min_epsilon) / anneal_steps
-    # if vessl_on == True:
-    #
-    #     output_dir = "/output/map_name_{}_GNN_{}_lr_{}_hiddensizeobs_{}_hiddensizeq_{}_nrepresentationobs_{}_nrepresentationcomm_{}/".format(map_name1, GNN, learning_rate, hidden_size_obs, hidden_size_Q, n_representation_obs, n_representation_comm)
-    # else:
-    #     output_dir = "output/map_name_{}_GNN_{}_lr_{}_hiddensizeobs_{}_hiddensizeq_{}_nrepresentationobs_{}_nrepresentationcomm_{}/".format(
-    #         map_name1, GNN, learning_rate, hidden_size_obs, hidden_size_Q, n_representation_obs, n_representation_comm)
+    if vessl_on == True:
 
-    # if not os.path.exists(output_dir):
-    #     os.makedirs(output_dir)
-    #
-    # log_dir = './output/logs/'
-    # if not os.path.exists(log_dir):
-    #     os.makedirs(log_dir)
+        output_dir = "/output/"
+    else:
+        output_dir = "/output/"
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    log_dir = './output/logs/'
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
 
     initializer = True
     # writer = SummaryWriter(log_dir,
@@ -181,20 +180,20 @@ def main():
         initializer = False
         epi_r.append(episode_reward)
         #writer.add_scalar("episode_reward/train", episode_reward, e)
-        # if t % 500000 <= 0.1:
-        #     if vessl_on == True:
-        #         agent1.save_model(output_dir+"{}.pt".format(t))
-        #     else:
-        #         agent1.save_model(output_dir+"{}.pt".format(t))
-        # if e % 100 == 1:
-        #     if vessl_on == True:
-        #         vessl.log(step = e, payload = {'reward' : np.mean(epi_r)})
-        #         epi_r = []
-        #         r_df= pd.DataFrame(epi_r)
-        #         r_df.to_csv(output_dir+"reward.csv")
-        #     else:
-        #         r_df= pd.DataFrame(epi_r)
-        #         r_df.to_csv(output_dir+"reward.csv")
+        if e % 200 <= 0.1:
+            if vessl_on == True:
+                agent1.save_model(output_dir+"{}.pt".format(t))
+            else:
+                agent1.save_model(output_dir+"{}.pt".format(t))
+        if e % 100 == 1:
+            if vessl_on == True:
+                vessl.log(step = e, payload = {'reward' : np.mean(epi_r)})
+                epi_r = []
+                r_df= pd.DataFrame(epi_r)
+                r_df.to_csv(output_dir+"reward.csv")
+            else:
+                r_df= pd.DataFrame(epi_r)
+                r_df.to_csv(output_dir+"reward.csv")
         #
         # if eval == True:
         #     win_rate = evaluation(env1, agent1, 32)
