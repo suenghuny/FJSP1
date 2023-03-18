@@ -284,7 +284,7 @@ class Process:
             machine.idle_complete_setup_start(job)
             machine.est_setup = setup_time
             machine.est_process = job.operations[0].process_time
-            soe = 0.1
+            soe = 0.05
             machine.current_setup_time = setup_time
             machine.current_setup_time_abs = self.env.now+setup_time
             process_time = job.operations[0].process_time
@@ -293,7 +293,7 @@ class Process:
             setup_time = np.random.gamma(shape=(1 / soe) ** 2, scale=(soe ** 2) * setup_time)
             yield self.env.timeout(setup_time/60)#np.random.gamma(shape=(1 / soe) ** 2, scale=(soe ** 2) * setup_list[a][b]))
             machine.setup_complete_process_start(job)
-            soe = 1.0
+            soe = 0.05
             process_time = np.random.gamma(shape=(1 / soe) ** 2, scale=(soe ** 2) * process_time)
             yield self.env.timeout(process_time/60)#np.random.uniform(0.8*process_time, 1.2*process_time))
             job.operation_complete()
@@ -620,6 +620,7 @@ class RL_ENV:
                 self.env.step()
                 changed_actions = self.proc.action
             except simpy.core.EmptySchedule:
+                print(sum(self.proc.scheduling_problem), len(self.proc.completed_job_store.items))
                 done = True
                 changed_actions = self.proc.action
                 break
