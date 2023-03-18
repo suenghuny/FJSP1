@@ -130,14 +130,14 @@ def main():
     anneal_epsilon = (epsilon - min_epsilon) / anneal_steps
     if vessl_on == True:
 
-        output_dir = "/output/"
+        output_dir = "output/"
     else:
-        output_dir = "/output/"
+        output_dir = "output/"
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    log_dir = './output/logs/'
+    log_dir = 'output/logs/'
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
