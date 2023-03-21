@@ -48,7 +48,7 @@ spine crawler : 300.00.01.125`
 
 
 
-def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, initializer):
+def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, initializer, output_dir):
     env.reset()
     done = False
     episode_reward = 0
@@ -84,6 +84,11 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
         episode_reward += reward
 
         t += 1
+        if t % 50000 <= 0.1:
+            if vessl_on == True:
+                agent.save_model(e, t, epsilon, output_dir+"{}.pt".format(t))
+            else:
+                agent.save_model(e,t,epsilon, output_dir+"{}.pt".format(t))
         step += 1
         if (t % 5000 == 0) and (t >0):
             eval = True
@@ -137,7 +142,7 @@ def main():
 
         output_dir = "output/"
     else:
-        output_dir = "output/"
+        output_dir = "../output/"
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -181,15 +186,11 @@ def main():
     epi_r = []
     win_rates = []
     for e in range(num_episode):
-        episode_reward, epsilon, t, eval = train(agent1, env1, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, initializer)
+        episode_reward, epsilon, t, eval = train(agent1, env1, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, initializer, output_dir)
         initializer = False
         epi_r.append(episode_reward)
         #writer.add_scalar("episode_reward/train", episode_reward, e)
-        if e % 200 <= 0.1:
-            if vessl_on == True:
-                agent1.save_model(output_dir+"{}.pt".format(t))
-            else:
-                agent1.save_model(output_dir+"{}.pt".format(t))
+
         if e % 100 == 1:
             if vessl_on == True:
                 vessl.log(step = e, payload = {'reward' : np.mean(epi_r)})

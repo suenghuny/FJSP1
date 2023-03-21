@@ -339,13 +339,21 @@ class Agent:
 
 
 
-    def save_model(self, path):
-        import copy
-        temp_agent = copy.deepcopy(self)
-        del temp_agent.buffer
-        temp_agent.buffer = Replay_Buffer(self.buffer_size, self.batch_size, self.num_agent, self.action_size)
-        torch.save(temp_agent, path)
-        del temp_agent
+    def save_model(self, e, t, epsilon, path):
+        torch.save({
+            'e': e,
+            't': t,
+            'epsilon': epsilon,
+            'Q': self.Q.state_dict(),
+            'Q_tar': self.Q_tar.state_dict(),
+            'node_representation_enemy_obs' : self.node_representation_enemy_obs.state_dict(),
+            'node_representation' : self.node_representation.state_dict(),
+            'action_representation' : self.action_representation.state_dict(),
+            'func_enemy_obs': self.func_enemy_obs.state_dict(),
+            'func_ally_comm': self.func_ally_comm.state_dict(),
+            'VDN': self.VDN.state_dict(),
+            'VDN_target': self.VDN_target.state_dict(),
+            'optimizer' : self.optimizer.state_dict()}, "{}".format(path))
 
 
     def load_model(self, path):
