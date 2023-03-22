@@ -80,7 +80,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
 
         reward, done, info = env.step(action)
 
-        agent.buffer.memory(node_feature_machine,edge_index_machine, action, reward, done, avail_action)
+        agent.buffer.memory(node_feature_machine,edge_index_machine, info, reward, done, avail_action)
         episode_reward += reward
 
         t += 1
@@ -115,9 +115,6 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
 def main():
 
     env1 = RL_ENV()
-    #env1.reset()
-
-
     hidden_size_obs = cfg.hidden_size_obs       # GAT 해당(action 및 node representation의 hidden_size)
     hidden_size_comm = cfg.hidden_size_comm
     hidden_size_Q = cfg.hidden_size_Q         # GAT 해당

@@ -10,6 +10,7 @@ import numpy as np
 
 np.random.seed(42)
 
+
 class Operation():
     global num_machines, process_time_list, alternative_machine_list
     def __init__(self, job_type, name, num_m=num_machines):
@@ -26,7 +27,6 @@ class Operation():
         #print(a, b)
         self.process_time = process_time_list[a][b]
         self.alternative_machine_list = eval(alternative_machine_list[a][b])
-
 
 
 all_ops_list = list()
@@ -233,6 +233,54 @@ class Process:
                     else:
                         pass
                 yield self.decision_time_step
+        elif self.mode == 'spsu':
+            while True:
+                yield self.env.timeout(0)
+                self.change = True
+                yield self.env.timeout(0)
+                for m_idx in range(num_machines):
+                    for machine in self.sorting_res_store:
+                        temp_setup_list = list()
+                        for job in self.waiting_job_store.items:
+                            a = ops_name_list.index(machine.setup)
+                            b = ops_name_list.index(job.operations[0].idx)
+                            if machine in self.machine_store.items and machine.name in job.operations[
+                                0].alternative_machine_list:
+                                temp_setup_list.append(setup_get(machine, job.operations[0])+job.operations[0].process_time)
+
+                            else:
+                                temp_setup_list.append(float('inf'))
+                        if len(temp_setup_list) > 0:
+                            machine.shortest_setup_time = min(temp_setup_list)
+
+
+                    for job in self.waiting_job_store.items:
+                        temp_setup_list = list()
+                        for machine in self.sorting_res_store:
+                            a = ops_name_list.index(machine.setup)
+                            b = ops_name_list.index(job.operations[0].idx)
+                            if machine in self.machine_store.items and machine.name in job.operations[
+                                0].alternative_machine_list:
+                                temp_setup_list.append(setup_get(machine, job.operations[0])+job.operations[0].process_time)
+                            else:
+                                temp_setup_list.append(float('inf'))
+                        if len(temp_setup_list) > 0:
+                            job.shortest_setup_time = min(temp_setup_list)
+                    self.machine_store.items.sort(key=lambda machine: machine.shortest_setup_time)
+
+                    self.waiting_job_store.items.sort(key=lambda job: job.shortest_setup_time)
+                    # print("전", [machine.shortest_setup_time for machine in self.machine_store.items])
+                    # print("후", [job.shortest_setup_time for job in self.waiting_job_store.items])
+                    if len(self.waiting_job_store.items) > 0 and len(self.machine_store.items) > 0 and np.min([job.shortest_setup_time for job in self.waiting_job_store.items]) != float('inf'):
+                        machine = yield self.machine_store.get()
+                        job = yield self.waiting_job_store.get()
+                        if machine.name not in job.operations[0].alternative_machine_list:
+                            print("?????")
+                        self.env.process(self._do_working(job, machine))
+
+
+                yield self.decision_time_step
+
         elif self.mode == 'ssu':
             while True:
                 yield self.env.timeout(0)
@@ -271,10 +319,6 @@ class Process:
                         machine = yield self.machine_store.get()
                         job = yield self.waiting_job_store.get()
                         self.env.process(self._do_working(job, machine))
-
-
-
-
                 yield self.decision_time_step
     def _do_working(self, job, machine):
         with machine.request() as req:
