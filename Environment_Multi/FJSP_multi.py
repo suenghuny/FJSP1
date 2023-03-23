@@ -15,6 +15,7 @@ class Operation():
     global num_machines, process_time_list, alternative_machine_list
     def __init__(self, job_type, name, num_m=num_machines):
         self.job_type = job_type
+
         self.k = name
         self.idx = "{}_{}".format(job_type, name)
         if self.idx[2] != '_':
@@ -87,6 +88,8 @@ class Machine(simpy.Resource):
         self.workcenter = workcenter
         self.name = name
         self.recent_action = 0
+        self.last_setup_remain_time = None
+        self.last_process_remain_time = None
         choices = list()
         for ops in flatten_all_ops_list:
             if self.name in ops.alternative_machine_list:
@@ -97,6 +100,7 @@ class Machine(simpy.Resource):
         self.machine_selection_indicator = 1
         self.count_ = 0
         self.action_history = [0 for _ in range(num_machines + 1)]
+        self.last_status = 'idle'
         self.idle_history = 0
         self.setup_history = 0
         self.process_history = 0
@@ -117,9 +121,9 @@ class Machine(simpy.Resource):
         self.action_space = [False for i in range(len(flatten_all_ops_list) + 1)]
         self.status = 'idle'
 
-        self.last_recorded_first_idle = 0
-        self.last_recorded_first_setup = 0
-        self.last_recorded_first_process = 0
+        self.last_recorded_first_idle = None
+        self.last_recorded_first_setup = None
+        self.last_recorded_first_process = None
 
 
         self.remaining_setup = 0
@@ -128,33 +132,59 @@ class Machine(simpy.Resource):
 
         self.current_setup_time = None
         self.current_process_time = None
+        self.current_idle_time = None
         self.current_setup_time_abs = None
         self.current_process_time_abs = None
+
+        self.current_idle_time_abs = None
+        self.complete = True
 
     def idle_complete_setup_start(self, job):
         self.status = 'setup'
         self.current_working_job  = job
-
         self.last_recorded_setup = self.env.now
         self.setup_start = self.env.now
+        self.current_idle_time = None
+        self.current_idle_time_abs = None
+        self.idle_complete_setup_start_check = True
+        self.complete = False
+
+
 
 
     def setup_complete_process_start(self, job):
         self.status = 'working'
+        # if self.name == 1:
+        #     print("setup 더하기", self.env.now - self.last_recorded_setup)
+
+        self.setup_history += self.env.now - self.last_recorded_setup
         self.setup = job.operations[0].idx
-
-
         self.last_recorded_process = self.env.now
+        self.last_recorded_setup = self.env.now
         self.process_start = self.env.now
         self.current_setup_time = None
         self.current_setup_time_abs = None
+        self.setup_complete_process_start_check = True
+        self.complete = False
+
+
+
 
     def process_complete_idle_start(self):
         self.status = 'idle'
+        self.process_history += self.env.now - self.last_recorded_process
         self.current_working_job = None
+        # if self.name == 1:
+        #     print("process더하기", self.env.now - self.last_recorded_process)
         self.last_recorded_idle = self.env.now
         self.current_process_time = None
         self.current_process_time_abs = None
+        self.process_complete_idle_start_check = True
+        self.complete = True
+
+
+
+
 
 
 class Process:
@@ -335,15 +365,21 @@ class Process:
             machine.current_process_time = process_time
             machine.current_process_time_abs = self.env.now+process_time
             setup_time = np.random.gamma(shape=(1 / soe) ** 2, scale=(soe ** 2) * setup_time)
-            yield self.env.timeout(setup_time/60)#np.random.gamma(shape=(1 / soe) ** 2, scale=(soe ** 2) * setup_list[a][b]))
+
+            yield self.env.timeout(setup_time)#np.random.gamma(shape=(1 / soe) ** 2, scale=(soe ** 2) * setup_list[a][b]))
+            # if machine.name == 1:
+            #     print("setup 끝", self.env.now)
             machine.setup_complete_process_start(job)
             soe = 0.05
             process_time = np.random.gamma(shape=(1 / soe) ** 2, scale=(soe ** 2) * process_time)
-            yield self.env.timeout(process_time/60)#np.random.uniform(0.8*process_time, 1.2*process_time))
+
+            yield self.env.timeout(process_time)#np.random.uniform(0.8*process_time, 1.2*process_time))
+            # if machine.name == 1:
+            #     print("process 끝", self.env.now)
             job.operation_complete()
             machine.process_complete_idle_start()
         self.machine_store.put(machine)
-        #self._update_current_status()
+
         if len(job.operations) == 0:
             self.completed_job_store.put(job)
             if len(self.completed_job_store.items) != sum(self.scheduling_problem):
@@ -445,7 +481,7 @@ class RL_ENV:
         num_agents = num_machines
         env_info = {"n_agents" : num_machines,
                     "job_feature_shape": num_jobs + max_ops_length,  # + self.n_agents,
-                    "machine_feature_shape" : 8 + num_jobs + max_ops_length+ len(workcenter)+ total_num_ops, # + self.n_agents,
+                    "machine_feature_shape" : 10 + num_jobs + max_ops_length+ len(workcenter)+ total_num_ops, # + self.n_agents,
                     "n_actions": len(ops_name_list) + 1
                     }
 
@@ -540,6 +576,8 @@ class RL_ENV:
         return job_features
 
     def get_node_feature_machine(self):
+
+
         node_features = list()
         workcenter_encodes = np.eye(len(workcenter))
         self.waiting_ops = [j.operations[0].idx for j in self.proc.waiting_job_store.items]
@@ -547,64 +585,192 @@ class RL_ENV:
                                     if ops in self.waiting_ops else 0 for ops in ops_name_list]
         for i in range(self.n_agents):
             machine = self.proc.dummy_res_store[i]
+
+
+
+
             if machine.status == 'setup':
                 machine.setup_history += self.env.now - machine.last_recorded_setup
-                setup_remain_time = (machine.current_setup_time_abs - self.env.now) / 60
-                process_remain_time = (machine.current_process_time_abs - self.env.now) / 60
-                self.reward += -(self.env.now - machine.last_recorded_setup)
+
+                if machine.last_recorded_first_idle == None:
+                    first_moment_idle = 0
+                else:
+                    if machine.last_recorded_setup != None and  machine.last_recorded_first_idle != None:
+                        first_moment_idle = self.env.now - machine.last_recorded_setup - machine.last_recorded_first_idle
+                    else:
+                        first_moment_idle = 0
+
+                if machine.last_recorded_first_setup == None:
+                    first_moment_setup = 0
+                else:
+                    if  machine.last_recorded_setup != None and machine.last_recorded_first_setup != None:
+                        first_moment_setup = self.env.now - machine.last_recorded_setup - machine.last_recorded_first_setup
+                    else:
+                        first_moment_setup = 0
+
+                if machine.last_recorded_first_process == None:
+                    first_moment_process = 0
+                else:
+                    if machine.last_recorded_process != None and machine.last_recorded_first_process != None:
+                        first_moment_process = self.env.now - machine.last_recorded_process - machine.last_recorded_first_process
+                    else:
+                        first_moment_process = 0
+
+                machine.last_recorded_first_setup = self.env.now - machine.last_recorded_setup
+                machine.last_recorded_first_process = 0
+                machine.last_recorded_first_idle = 0
+
+                setup_remain_time = (machine.current_setup_time_abs - self.env.now)
+                process_remain_time = (machine.current_process_time_abs - self.env.now)
+                self.reward += -(self.env.now - machine.last_recorded_setup)/60
                 machine.last_recorded_setup = self.env.now
+                # if machine.name == 1:
+                #     print("setup 더하기", self.env.now - machine.last_recorded_setup, machine.setup_history)
+
 
             if machine.status == 'working':
                 machine.process_history += self.env.now - machine.last_recorded_process
+
+                if machine.last_recorded_first_idle == None:
+                    first_moment_idle = 0
+                else:
+                    if machine.last_recorded_setup != None and  machine.last_recorded_first_idle != None:
+                        first_moment_idle = self.env.now - machine.last_recorded_setup - machine.last_recorded_first_idle
+                    else:
+                        first_moment_idle = 0
+
+                if machine.last_recorded_first_setup == None:
+                    first_moment_setup = 0
+                else:
+                    if  machine.last_recorded_setup != None and machine.last_recorded_first_setup != None:
+                        first_moment_setup = self.env.now - machine.last_recorded_setup - machine.last_recorded_first_setup
+                    else:
+                        first_moment_setup = 0
+
+                if machine.last_recorded_first_process == None:
+                    first_moment_process = 0
+                else:
+                    if machine.last_recorded_process != None and machine.last_recorded_first_process != None:
+                        first_moment_process = self.env.now - machine.last_recorded_process - machine.last_recorded_first_process
+                    else:
+                        first_moment_process = 0
+
+
+                machine.last_recorded_first_setup = 0
+                machine.last_recorded_first_process = self.env.now - machine.last_recorded_process
+                machine.last_recorded_first_idle = 0
+
+
+
                 setup_remain_time = 0
-                process_remain_time = (machine.current_process_time_abs - self.env.now) / 60
+                process_remain_time = (machine.current_process_time_abs - self.env.now)
                 machine.last_recorded_process = self.env.now
 
             if machine.status == 'idle':
                 machine.idle_history += self.env.now - machine.last_recorded_idle
+
+                if machine.last_recorded_first_idle == None:
+                    first_moment_idle = 0
+                else:
+                    if machine.last_recorded_setup != None and  machine.last_recorded_first_idle != None:
+                        first_moment_idle = self.env.now - machine.last_recorded_setup - machine.last_recorded_first_idle
+                    else:
+                        first_moment_idle = 0
+
+                if machine.last_recorded_first_setup == None:
+                    first_moment_setup = 0
+                else:
+                    if  machine.last_recorded_setup != None and machine.last_recorded_first_setup != None:
+                        first_moment_setup = self.env.now - machine.last_recorded_setup - machine.last_recorded_first_setup
+                    else:
+                        first_moment_setup = 0
+
+                if machine.last_recorded_first_process == None:
+                    first_moment_process = 0
+                else:
+                    if machine.last_recorded_process != None and machine.last_recorded_first_process != None:
+                        first_moment_process = self.env.now - machine.last_recorded_process - machine.last_recorded_first_process
+                    else:
+                        first_moment_process = 0
+
+                machine.last_recorded_first_setup = 0
+                machine.last_recorded_first_process = 0
+                machine.last_recorded_first_idle = self.env.now - machine.last_recorded_idle
+
+                # if machine.last_recorded_process == None:
+                #     pass
+                # else:
+                #     machine.process_history += self.env.now - machine.last_recorded_process
+
+
                 setup_remain_time = 0
                 process_remain_time = 0
-                self.reward += -(self.env.now - machine.last_recorded_idle)
-
+                self.reward += -(self.env.now - machine.last_recorded_idle)/60
                 machine.last_recorded_idle = self.env.now
             idx = machine.setup
+
+            # if machine.name == 1 and self.env.now>0:
+            #     print(machine.status,
+            #           machine.idle_history, machine.setup_history, machine.process_history, self.env.now, sum([machine.idle_history, machine.setup_history, machine.process_history])/self.env.now)
+
+
+            # if self.env.now>0:
+            #     print(sum([machine.process_history, machine.idle_history, machine.setup_history])/self.env.now)
             if idx[2] != '_':
                 a = int(idx[0])
                 b = int(idx[2])
             else:
                 a = int(idx[0:2])
                 b = int(idx[3])
-
+            machine.last_status = machine.status
             setup = np.concatenate([np.eye(num_jobs)[a], np.eye(max_ops_length)[b]])
 
-            if machine.last_recorded_idle== None:
-                first_moment_idle = 0
-            else:
-                first_moment_idle = self.env.now - machine.last_recorded_idle
 
-            if machine.last_recorded_setup == None:
-                first_moment_setup = 0
-            else:
-                first_moment_setup = self.env.now - machine.last_recorded_setup
 
-            if machine.last_recorded_process == None:
-                first_moment_process = 0
+
+            if machine.last_setup_remain_time == None:
+                first_moment_setup_remain_time = 0
             else:
-                first_moment_process = self.env.now - machine.last_recorded_process
+                first_moment_setup_remain_time = -(machine.last_setup_remain_time - setup_remain_time)
+
+            if machine.last_process_remain_time == None:
+                first_moment_process_remain_time = 0
+            else:
+                first_moment_process_remain_time = -(machine.last_process_remain_time - process_remain_time)
+
+            first_moment_idle = first_moment_idle/180
+            first_moment_setup = first_moment_setup/180
+            first_moment_process=first_moment_process /180
+
+            setup_remain_time =setup_remain_time/60
+            process_remain_time = process_remain_time/60
+            first_moment_process_remain_time = first_moment_process_remain_time/180
+            first_moment_setup_remain_time = first_moment_setup_remain_time/180
+
+
+            machine.last_setup_remain_time = setup_remain_time
+            machine.last_process_remain_time = process_remain_time
+
+
+
             if self.env.now == 0:
                 node_feature = np.concatenate([np.array([0,0,0,
-                                                             first_moment_idle/60,
-                                                             first_moment_setup/60,
-                                                             first_moment_process/60,
+                                                             first_moment_idle,
+                                                             first_moment_setup,
+                                                             first_moment_process,
+                                                         first_moment_setup_remain_time,
+                                                         first_moment_process_remain_time,
                                                              setup_remain_time,
                                                              process_remain_time]), setup, workcenter_encodes[machine.workcenter], num_waiting_operations])
             else:
                 node_feature = np.concatenate([np.array([machine.idle_history/self.env.now,
                                         machine.setup_history/self.env.now,
                                                              machine.process_history/self.env.now,
-                                                             first_moment_idle/60,
-                                                             first_moment_setup/60,
-                                                             first_moment_process/60,
+                                                             first_moment_idle,
+                                                             first_moment_setup,
+                                                             first_moment_process,
+                                                         first_moment_setup_remain_time,
+                                                         first_moment_process_remain_time,
                                                              setup_remain_time,
                                                              process_remain_time]), setup, workcenter_encodes[machine.workcenter], num_waiting_operations])
 
