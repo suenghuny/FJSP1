@@ -6,6 +6,7 @@ import torch.nn.functional as F
 
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(device)
 class GraphAttentionLayer(nn.Module):
     """
     Simple GAT layer, similar to https://arxiv.org/abs/1710.10903
