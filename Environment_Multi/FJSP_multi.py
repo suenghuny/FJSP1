@@ -158,6 +158,7 @@ class Machine(simpy.Resource):
         #     print("setup 더하기", self.env.now - self.last_recorded_setup)
 
         self.setup_history += self.env.now - self.last_recorded_setup
+        self.home.reward += -(self.env.now - self.last_recorded_idle) / 60
         self.setup = job.operations[0].idx
         self.last_recorded_process = self.env.now
         self.last_recorded_setup = self.env.now
@@ -587,10 +588,9 @@ class RL_ENV:
             machine = self.proc.dummy_res_store[i]
 
 
-
-
             if machine.status == 'setup':
                 machine.setup_history += self.env.now - machine.last_recorded_setup
+                self.reward += -(self.env.now - machine.last_recorded_setup) / 60
 
                 if machine.last_recorded_first_idle == None:
                     first_moment_idle = 0
@@ -622,7 +622,7 @@ class RL_ENV:
 
                 setup_remain_time = (machine.current_setup_time_abs - self.env.now)
                 process_remain_time = (machine.current_process_time_abs - self.env.now)
-                self.reward += -(self.env.now - machine.last_recorded_setup)/60
+
                 machine.last_recorded_setup = self.env.now
                 # if machine.name == 1:
                 #     print("setup 더하기", self.env.now - machine.last_recorded_setup, machine.setup_history)
@@ -668,6 +668,7 @@ class RL_ENV:
 
             if machine.status == 'idle':
                 machine.idle_history += self.env.now - machine.last_recorded_idle
+                self.reward += -(self.env.now - machine.last_recorded_idle) / 60
 
                 if machine.last_recorded_first_idle == None:
                     first_moment_idle = 0
@@ -705,7 +706,7 @@ class RL_ENV:
 
                 setup_remain_time = 0
                 process_remain_time = 0
-                self.reward += -(self.env.now - machine.last_recorded_idle)/60
+
                 machine.last_recorded_idle = self.env.now
             idx = machine.setup
 

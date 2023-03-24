@@ -79,6 +79,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
         action = agent.sample_action(node_representation, avail_action, epsilon)
 
         reward, done, info = env.step(action)
+        reward *= 1/20
 
         agent.buffer.memory(node_feature_machine,edge_index_machine, info, reward, done, avail_action)
         episode_reward += reward
