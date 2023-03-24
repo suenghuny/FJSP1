@@ -79,7 +79,8 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
         action = agent.sample_action(node_representation, avail_action, epsilon)
 
         reward, done, info = env.step(action)
-        reward *= 1/20
+        reward *= 1/5
+        print(reward)
 
         agent.buffer.memory(node_feature_machine,edge_index_machine, info, reward, done, avail_action)
         episode_reward += reward
@@ -105,6 +106,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
             epsilon = min_epsilon
         #print(episode_reward, done)
     if e >= train_start:
+        print("makespan", env.env.now)
         print("Total reward in episode {} = {}, epsilon : {}, time_step : {}, episode_duration : {}, training_duration : {}".format(
                                                                                                 e,
                                                                                                 np.round(episode_reward, 3),

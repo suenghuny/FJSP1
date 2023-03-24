@@ -155,8 +155,7 @@ class Machine(simpy.Resource):
     def setup_complete_process_start(self, job):
         self.status = 'working'
         # if self.name == 1:
-        #     print("setup 더하기", self.env.now - self.last_recorded_setup)
-
+        #     print("setup 더하기", self.env.now - self.last_recorded_set
         self.setup_history += self.env.now - self.last_recorded_setup
         self.home.reward += -(self.env.now - self.last_recorded_setup) / 60
         self.setup = job.operations[0].idx
