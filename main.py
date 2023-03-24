@@ -80,7 +80,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
 
         reward, done, info = env.step(action)
         reward *= 1/5
-        print(reward)
+#        print(reward)
 
         agent.buffer.memory(node_feature_machine,edge_index_machine, info, reward, done, avail_action)
         episode_reward += reward
