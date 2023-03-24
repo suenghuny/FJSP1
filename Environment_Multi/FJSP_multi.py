@@ -158,7 +158,7 @@ class Machine(simpy.Resource):
         #     print("setup 더하기", self.env.now - self.last_recorded_setup)
 
         self.setup_history += self.env.now - self.last_recorded_setup
-        self.home.reward += -(self.env.now - self.last_recorded_idle) / 60
+        self.home.reward += -(self.env.now - self.last_recorded_setup) / 60
         self.setup = job.operations[0].idx
         self.last_recorded_process = self.env.now
         self.last_recorded_setup = self.env.now
