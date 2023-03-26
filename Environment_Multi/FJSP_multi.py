@@ -258,32 +258,32 @@ class Process:
                                     print("?????")
                                 #print((machine.name, self.action[m.name]))
                             else:
-                                #self.action[m.name] = self.action_space[-1] # 원래는 이 문장만 있었음
+                                self.action[m.name] = self.action_space[-1] # 원래는 이 문장만 있었음
 
-                                for job in self.waiting_job_store.items:
-                                    temp_setup_list = list()
-                                    if m in self.machine_store.items and m.name in job.operations[0].alternative_machine_list:
-                                        temp_setup_list.append(setup_get(machine, job.operations[0]) + job.operations[0].process_time)
-                                    else:
-                                        temp_setup_list.append(float('inf'))
-                                    if len(temp_setup_list) > 0:
-                                        job.shortest_setup_time = min(temp_setup_list)
-                                self.waiting_job_store.items.sort(key=lambda job: job.shortest_setup_time)
-                                if len(self.waiting_job_store.items) > 0 and len(
-                                        self.machine_store.items) > 0 and np.min(
-                                        [job.shortest_setup_time for job in self.waiting_job_store.items]) != float('inf'):
-
-                                    ops_idx = self.waiting_job_store.items[0].operations[0].idx
-                                    #print("전", self.action)
-                                    self.action[m.name] = ops_name_list.index(ops_idx)
-                                    #print("후", self.action)
-                                    machine = yield self.machine_store.get(lambda res: res == m)
-                                    job = yield self.waiting_job_store.get()
-                                    if machine.name not in job.operations[0].alternative_machine_list:
-                                        print("?????")
-                                    self.env.process(self._do_working(job, machine))
-                                else:
-                                    self.action[m.name] = self.action_space[-1]
+                                # for job in self.waiting_job_store.items:
+                                #     temp_setup_list = list()
+                                #     if m in self.machine_store.items and m.name in job.operations[0].alternative_machine_list:
+                                #         temp_setup_list.append(setup_get(machine, job.operations[0]) + job.operations[0].process_time)
+                                #     else:
+                                #         temp_setup_list.append(float('inf'))
+                                #     if len(temp_setup_list) > 0:
+                                #         job.shortest_setup_time = min(temp_setup_list)
+                                # self.waiting_job_store.items.sort(key=lambda job: job.shortest_setup_time)
+                                # if len(self.waiting_job_store.items) > 0 and len(
+                                #         self.machine_store.items) > 0 and np.min(
+                                #         [job.shortest_setup_time for job in self.waiting_job_store.items]) != float('inf'):
+                                #
+                                #     ops_idx = self.waiting_job_store.items[0].operations[0].idx
+                                #     #print("전", self.action)
+                                #     self.action[m.name] = ops_name_list.index(ops_idx)
+                                #     #print("후", self.action)
+                                #     machine = yield self.machine_store.get(lambda res: res == m)
+                                #     job = yield self.waiting_job_store.get()
+                                #     if machine.name not in job.operations[0].alternative_machine_list:
+                                #         print("?????")
+                                #     self.env.process(self._do_working(job, machine))
+                                # else:
+                                #     self.action[m.name] = self.action_space[-1]
 
                         else:
                             pass
