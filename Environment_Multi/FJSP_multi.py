@@ -709,15 +709,19 @@ class RL_ENV:
 
 
 
-            if machine.last_setup_remain_time == None:
-                first_moment_setup_remain_time = 0
-            else:
-                first_moment_setup_remain_time = -(machine.last_setup_remain_time - setup_remain_time)/time_delta
+            if machine.last_setup_remain_time != None and time_delta != 0 :
+                first_moment_setup_remain_time = -(machine.last_setup_remain_time - setup_remain_time) / time_delta
 
-            if machine.last_process_remain_time == None:
-                first_moment_process_remain_time = 0
             else:
-                first_moment_process_remain_time = -(machine.last_process_remain_time - process_remain_time)/time_delta
+                first_moment_setup_remain_time = 0
+
+            if machine.last_process_remain_time != None and time_delta !=0:
+                first_moment_process_remain_time = -(
+                            machine.last_process_remain_time - process_remain_time) / time_delta
+
+            else:
+                first_moment_process_remain_time = 0
+
 
             first_moment_idle = first_moment_idle
             first_moment_setup = first_moment_setup
