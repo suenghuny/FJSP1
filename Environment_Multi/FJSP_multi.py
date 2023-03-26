@@ -508,7 +508,7 @@ class RL_ENV:
         num_agents = num_machines
         env_info = {"n_agents" : num_machines,
                     "job_feature_shape": num_jobs + max_ops_length,  # + self.n_agents,
-                    "machine_feature_shape" : 10 + num_jobs + max_ops_length+ len(workcenter)+ total_num_ops, # + self.n_agents,
+                    "machine_feature_shape" : 8 + num_jobs + max_ops_length+ len(workcenter)+ total_num_ops, # + self.n_agents,
                     "n_actions": len(ops_name_list) + 1
                     }
 
@@ -748,8 +748,8 @@ class RL_ENV:
 
             else:
                 first_moment_process_remain_time = 0
-
-
+            # if first_moment_process_remain_time > 100:
+            #     print(machine.last_setup_remain_time, setup_remain_time, time_delta)
             first_moment_idle = first_moment_idle
             first_moment_setup = first_moment_setup
             first_moment_process=first_moment_process
@@ -773,8 +773,6 @@ class RL_ENV:
                                                              first_moment_idle,
                                                              first_moment_setup,
                                                              first_moment_process,
-                                                         first_moment_setup_remain_time,
-                                                         first_moment_process_remain_time,
                                                              setup_remain_time,
                                                              process_remain_time]), setup, workcenter_encodes[machine.workcenter], num_waiting_operations])
             else:
@@ -784,11 +782,9 @@ class RL_ENV:
                                                              first_moment_idle,
                                                              first_moment_setup,
                                                              first_moment_process,
-                                                         first_moment_setup_remain_time,
-                                                         first_moment_process_remain_time,
                                                              setup_remain_time,
                                                              process_remain_time]), setup, workcenter_encodes[machine.workcenter], num_waiting_operations])
-
+            #print(node_feature)
             node_features.append(node_feature)
         self.last_time_step = self.env.now
         return node_features
