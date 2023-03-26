@@ -497,7 +497,7 @@ class Agent:
             else:
                 u = np.random.choice(self.action_space, p=mask_n / np.sum(mask_n))
                 action.append(u)
-
+        #print("sss", action)
         return action
 
 
