@@ -138,8 +138,8 @@ def main():
     teleport_probability = cfg.teleport_probability
     gtn_beta = cfg.gtn_beta
     anneal_epsilon = (epsilon - min_epsilon) / anneal_steps
-    if vessl_on == True:
 
+    if vessl_on == True:
         output_dir = "output/"
     else:
         output_dir = "../output/"
