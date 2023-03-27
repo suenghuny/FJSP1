@@ -61,16 +61,13 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
     sum_learn = 0
 
     while not done:
-        # self.get_node_feature_job(), self.get_node_feature_machine(), self.get_edge_index_job_machine(), self.get_edge_index_machine_machine()
-        node_feature_machine,edge_index_machine = env.get_heterogeneous_graph()
 
-        # print(np.array(node_feature_job).shape, np.array(node_feature_machine).shape)
-        #  node_feature_job, node_feature_machine, edge_index_job, edge_index_machine, n_node_features, mini_batch
-
+        node_feature_machine, num_waiting_operations, edge_index_machine = env.get_heterogeneous_graph()
         n_node_feature_machine = np.array(node_feature_machine).shape[0]
         if GNN == 'GAT':
             node_representation = agent.get_node_representation(
                                                                 node_feature_machine,
+                                                                num_waiting_operations,
                                                                 edge_index_machine,
                                                                 n_node_feature_machine,
                                                                 mini_batch=False)  # 차원 : n_agents X n_representation_comm
@@ -82,7 +79,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
         reward *= 1/5
 #        print(reward)
 
-        agent.buffer.memory(node_feature_machine,edge_index_machine, info, reward, done, avail_action)
+        agent.buffer.memory(node_feature_machine,num_waiting_operations, edge_index_machine, info, reward, done, avail_action)
         episode_reward += reward
 
         t += 1

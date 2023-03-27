@@ -10,7 +10,6 @@ import numpy as np
 
 np.random.seed(42)
 
-
 class Operation():
     global num_machines, process_time_list, alternative_machine_list
     def __init__(self, job_type, name, num_m=num_machines):
@@ -33,6 +32,7 @@ class Operation():
 all_ops_list = list()
 flatten_all_ops_list = list()
 ops_length_list = list()
+
 for j in range(len(process_time_list)):
     job_j_operation_list = list()
     ops_length_list.append(len(process_time_list[j]))
@@ -52,6 +52,7 @@ total_num_ops = sum(ops_length_list)
 num_jobs = len(process_time_list)
 max_ops_length = max(ops_length_list)
 # Job 객체는 Operation 정보 등을 기록함
+
 class Job():
     global all_ops_list, setup_list
     def __init__(self, job_type, name):
@@ -174,8 +175,6 @@ class Machine(simpy.Resource):
         self.status = 'idle'
         self.process_history += self.env.now - self.last_recorded_process
         self.current_working_job = None
-        # if self.name == 1:
-        #     print("process더하기", self.env.now - self.last_recorded_process)
         self.last_recorded_idle = self.env.now
         self.current_process_time = None
         self.current_process_time_abs = None
@@ -195,7 +194,8 @@ class Process:
         if test == False:
             selection = np.random.randint(0, len(problems))
             scheduling_problem = problems[selection]
-            self.scheduling_problem = [int(p) + np.random.choice([-2, -1, 0, 1, 2]) for p in scheduling_problem]
+            #self.scheduling_problem = [int(p) + np.random.choice([-2, -1, 0, 1, 2]) for p in scheduling_problem]
+            self.scheduling_problem = [int(p) for p in scheduling_problem]
 
 
         for k in range(len(self.scheduling_problem)):
@@ -507,8 +507,8 @@ class RL_ENV:
     def get_env_info(self):
         num_agents = num_machines
         env_info = {"n_agents" : num_machines,
-                    "job_feature_shape": num_jobs + max_ops_length,  # + self.n_agents,
-                    "machine_feature_shape" : 8 + num_jobs + max_ops_length+ len(workcenter)+ total_num_ops, # + self.n_agents,
+                    "job_feature_shape": sum(ops_length_list),  # + self.n_agents,
+                    "machine_feature_shape" : 8 + num_jobs + max_ops_length+ len(workcenter), # + self.n_agents,
                     "n_actions": len(ops_name_list) + 1
                     }
 
@@ -626,16 +626,9 @@ class RL_ENV:
                 machine.last_recorded_first_setup = self.env.now - machine.last_recorded_setup
                 machine.last_recorded_first_process = 0
                 machine.last_recorded_first_idle = 0
-
-
                 setup_remain_time = (machine.current_setup_time_abs - self.env.now)/machine.current_setup_time
                 process_remain_time = 1
-
                 machine.last_recorded_setup = self.env.now
-                # if machine.name == 1:
-                #     print("setup 더하기", self.env.now - machine.last_recorded_setup, machine.setup_history)
-
-
             if machine.status == 'working':
                 machine.process_history += self.env.now - machine.last_recorded_process
                 if time_delta != 0:
@@ -647,50 +640,15 @@ class RL_ENV:
                     first_moment_process = 0
                     first_moment_setup = 0
                     first_moment_idle = 0
-
-                #
-                # if machine.last_recorded_idle != None:
-                #     if time_delta != 0:
-                #
-                #         first_moment_idle = (self.env.now - machine.last_recorded_idle)/time_delta
-                #     else:
-                #         first_moment_idle = 0
-                # else:
-                #     first_moment_idle = 0
-                #
-                # if  machine.last_recorded_setup != None:
-                #     if time_delta != 0:
-                #         first_moment_setup = (self.env.now - machine.last_recorded_setup)/time_delta
-                #     else:
-                #         first_moment_setup = 0
-                # else:
-                #     first_moment_setup = 0
-                #
-                #
-                # if machine.last_recorded_process != None:
-                #     if time_delta != 0:
-                #         first_moment_process = (self.env.now - machine.last_recorded_process)/time_delta
-                #     else:
-                #         first_moment_process = 0
-                # else:
-                #     first_moment_process = 0
-
-
                 machine.last_recorded_first_setup = 0
                 machine.last_recorded_first_process = self.env.now - machine.last_recorded_process
                 machine.last_recorded_first_idle = 0
-
-
-
                 setup_remain_time = 0
                 process_remain_time = (machine.current_process_time_abs - self.env.now)/machine.current_process_time
-
                 machine.last_recorded_process = self.env.now
-
             if machine.status == 'idle':
                 machine.idle_history += self.env.now - machine.last_recorded_idle
                 self.reward += -(self.env.now - machine.last_recorded_idle) / 60
-
                 if time_delta != 0:
                     first_moment_process = 0
                     first_moment_setup =0
@@ -699,31 +657,13 @@ class RL_ENV:
                     first_moment_process = 0
                     first_moment_setup = 0
                     first_moment_idle = 0
-
-
                 machine.last_recorded_first_setup = 0
                 machine.last_recorded_first_process = 0
                 machine.last_recorded_first_idle = self.env.now - machine.last_recorded_idle
-
-                # if machine.last_recorded_process == None:
-                #     pass
-                # else:
-                #     machine.process_hist, ory += self.env.now - machine.last_recorded_process
-
-
                 setup_remain_time = 0
                 process_remain_time = 0
-
                 machine.last_recorded_idle = self.env.now
             idx = machine.setup
-            # if self.env.now>0:
-            #     #sum([machine.setup_history, machine.process_history, machine.idle_history])/self.env.now
-            #     print(sum([first_moment_idle, first_moment_setup,first_moment_process]), first_moment_idle, first_moment_setup,first_moment_process)
-            # if machine.name == 1 and self.env.now>0:
-            #     print(machine.status,
-            #           machine.idle_history, machine.setup_history, machine.process_history, self.env.now, sum([machine.idle_history, machine.setup_history, machine.process_history])/self.env.now)
-            # if machine.name == 1:
-            #     print(machine.status, process_remain_time, setup_remain_time)
             if idx[2] != '_':
                 a = int(idx[0])
                 b = int(idx[2])
@@ -732,10 +672,6 @@ class RL_ENV:
                 b = int(idx[3])
             machine.last_status = machine.status
             setup = np.concatenate([np.eye(num_jobs)[a], np.eye(max_ops_length)[b]])
-
-
-
-
             if machine.last_setup_remain_time != None and time_delta != 0 :
                 first_moment_setup_remain_time = -(machine.last_setup_remain_time - setup_remain_time) / time_delta
 
@@ -748,33 +684,22 @@ class RL_ENV:
 
             else:
                 first_moment_process_remain_time = 0
-            # if first_moment_process_remain_time > 100:
-            #     print(machine.last_setup_remain_time, setup_remain_time, time_delta)
             first_moment_idle = first_moment_idle
             first_moment_setup = first_moment_setup
             first_moment_process=first_moment_process
-
-
-
             setup_remain_time =setup_remain_time
             process_remain_time = process_remain_time
-
             first_moment_process_remain_time = first_moment_process_remain_time
             first_moment_setup_remain_time = first_moment_setup_remain_time
-
-
             machine.last_setup_remain_time = setup_remain_time
             machine.last_process_remain_time = process_remain_time
-
-
-
             if self.env.now == 0:
                 node_feature = np.concatenate([np.array([0,0,0,
                                                              first_moment_idle,
                                                              first_moment_setup,
                                                              first_moment_process,
                                                              setup_remain_time,
-                                                             process_remain_time]), setup, workcenter_encodes[machine.workcenter], num_waiting_operations])
+                                                             process_remain_time]), setup, workcenter_encodes[machine.workcenter]])
             else:
                 node_feature = np.concatenate([np.array([machine.idle_history/self.env.now,
                                         machine.setup_history/self.env.now,
@@ -783,14 +708,16 @@ class RL_ENV:
                                                              first_moment_setup,
                                                              first_moment_process,
                                                              setup_remain_time,
-                                                             process_remain_time]), setup, workcenter_encodes[machine.workcenter], num_waiting_operations])
-            #print(node_feature)
+                                                             process_remain_time]), setup, workcenter_encodes[machine.workcenter]])
+
             node_features.append(node_feature)
+
         self.last_time_step = self.env.now
-        return node_features
+        return node_features, num_waiting_operations
 
     def get_heterogeneous_graph(self):
-        return self.get_node_feature_machine(), self.get_edge_index_machine_machine()
+        node_features, num_waiting_operations = self.get_node_feature_machine()
+        return node_features, num_waiting_operations, self.get_edge_index_machine_machine()
 
     def reset(self):
 

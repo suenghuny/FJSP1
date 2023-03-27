@@ -19,7 +19,6 @@ class GraphAttentionLayer(nn.Module):
         self.alpha = alpha
         self.concat = concat
         self.teleport_probability = teleport_probability
-
         self.W = nn.Parameter(torch.empty(size=(in_features, out_features)))
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
         self.a = nn.Parameter(torch.empty(size=(2 * out_features, 1)))
@@ -28,7 +27,6 @@ class GraphAttentionLayer(nn.Module):
         nn.init.xavier_uniform_(self.c.data, gain=1.414)
         self.leakyrelu = nn.LeakyReLU(self.alpha)
         self.adj = torch.ones([n_node,n_node]).to(device).long()
-
         self.adj_batch = torch.ones([batch_size, n_node,n_node]).to(device).long()
 
         # print(time.time()-start)
