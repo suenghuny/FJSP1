@@ -511,6 +511,7 @@ class RL_ENV:
                     "machine_feature_shape" : 8 + num_jobs + max_ops_length+ len(workcenter), # + self.n_agents,
                     "n_actions": len(ops_name_list) + 1
                     }
+        print(env_info)
 
         #print(env_info['obs_shape'])
         return env_info
