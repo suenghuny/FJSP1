@@ -17,7 +17,7 @@ from GTN.utils import _norm
 from GTN.model_fastgtn import FastGTNs
 from scipy.sparse import csr_matrix
 
-
+from kfac.preconditioner import KFACPreconditioner
 
 
 class VDN(nn.Module):
@@ -35,12 +35,14 @@ class Network(nn.Module):
         self.fcn_1 = nn.Linear(obs_and_action_size, hidden_size_q+10)
         self.fcn_2 = nn.Linear(hidden_size_q+10, hidden_size_q-5)
         self.fcn_3 = nn.Linear(hidden_size_q-5, hidden_size_q-20)
-        self.fcn_4 = nn.Linear(hidden_size_q-20, action_size)
+        self.fcn_4 = nn.Linear(hidden_size_q - 20, hidden_size_q - 40)
+        self.fcn_5 = nn.Linear(hidden_size_q-40, action_size)
         #self.fcn_5 = nn.Linear(int(hidden_size_q/8), action_size)
         torch.nn.init.xavier_uniform_(self.fcn_1.weight)
         torch.nn.init.xavier_uniform_(self.fcn_2.weight)
         torch.nn.init.xavier_uniform_(self.fcn_3.weight)
         torch.nn.init.xavier_uniform_(self.fcn_4.weight)
+        torch.nn.init.xavier_uniform_(self.fcn_5.weight)
         #torch.nn.init.xavier_uniform_(self.fcn_5.weight)
 
     def forward(self, obs_and_action):
@@ -48,7 +50,8 @@ class Network(nn.Module):
         x = F.relu(self.fcn_1(obs_and_action))
         x = F.relu(self.fcn_2(x))
         x = F.relu(self.fcn_3(x))
-        q = self.fcn_4(x)
+        x = F.relu(self.fcn_4(x))
+        q = self.fcn_5(x)
         #q = self.fcn_5(x)
         return q
 
@@ -58,15 +61,18 @@ class NodeEmbedding(nn.Module):
         self.feature_size = feature_size
         self.fcn_1 = nn.Linear(feature_size, hidden_size+10)
         self.fcn_2 = nn.Linear(hidden_size+10, hidden_size+10)
-        self.fcn_3 = nn.Linear(hidden_size+10, n_representation_obs)
+        self.fcn_3 = nn.Linear(hidden_size+10, hidden_size+10)
+        self.fcn_4 = nn.Linear(hidden_size+10, n_representation_obs)
         torch.nn.init.xavier_uniform_(self.fcn_1.weight)
         torch.nn.init.xavier_uniform_(self.fcn_2.weight)
         torch.nn.init.xavier_uniform_(self.fcn_3.weight)
+        torch.nn.init.xavier_uniform_(self.fcn_4.weight)
 
     def forward(self, node_feature):
         x = F.relu(self.fcn_1(node_feature))
         x = F.relu(self.fcn_2(x))
-        node_representation = self.fcn_3(x)
+        x = F.relu(self.fcn_3(x))
+        node_representation = self.fcn_4(x)
         return node_representation
 
 class Replay_Buffer:
@@ -340,6 +346,7 @@ class Agent:
                                list(self.node_representation.parameters()) + \
                                list(self.action_representation.parameters())
         self.optimizer = optim.RMSprop(self.eval_params, lr=learning_rate)
+
         self.time_check =[[],[]]
 
 
@@ -362,7 +369,26 @@ class Agent:
 
 
     def load_model(self, path):
-        self = torch.load(path)
+        checkpoint = torch.load(path)
+        e = checkpoint["e"]
+        t = checkpoint["t"]
+        epsilon = checkpoint["epsilon"]
+        self.Q.load_state_dict(checkpoint["Q"])
+        self.Q_tar.load_state_dict(checkpoint["Q_tar"])
+        self.node_representation_job_obs.load_state_dict(checkpoint["node_representation_job_obs"])
+        self.node_representation.load_state_dict(checkpoint["node_representation"])
+        self.func_job_obs.load_state_dict(checkpoint["func_job_obs"])
+        self.func_machine_comm.load_state_dict(checkpoint["func_machine_comm"])
+        self.VDN.load_state_dict(checkpoint["VDN"])
+        self.VDN_target.load_state_dict(checkpoint["VDN_target"])
+        self.optimizer.load_state_dict(checkpoint["optimizer"])
+        self.eval_params = list(self.VDN.parameters()) + \
+                           list(self.Q.parameters()) + \
+                           list(self.node_representation_job_obs.parameters()) + \
+                           list(self.node_representation.parameters()) + \
+                           list(self.func_job_obs.parameters()) + \
+                           list(self.func_machine_comm.parameters())
+        return e, t, epsilon
 
 
 

@@ -13,8 +13,9 @@ import numpy as np
 # num_jobs = 100
 
 # # #시나리오 3
-num_job_type = 4
-num_machines = 7
+temp = [4, 4, 5, 3]
+num_job_type = len(temp)
+num_machines = 9
 #num_jobs = 120
 
 # num_job_type = 3
@@ -60,7 +61,7 @@ ops_name_list = list()
 process_time_list = list()
 
 alternative_machine_list = list()
-temp = [3, 4, 5, 3]
+
 ops_type_list = list()
 for j in range(num_job_type):
     process_j_operation_list = list()
@@ -69,14 +70,19 @@ for j in range(num_job_type):
     num_operations = temp[j]
     for k in range(num_operations):
         ops_name_list.append("{}_{}".format(j, k))
-        if k % 2 == 0:
-            process_j_operation_list.append(20)
-            machine_j_operation_list.append([0,1,2])
-            job_j_ops_type_list.append(0)
+        if np.random.choice([0,1], p = [0.9,0.1])== 0:
+            if k % 2 == 0:
+                process_j_operation_list.append(np.random.choice([80, 90, 100, 60]))
+                machine_j_operation_list.append([0,1,2])
+                job_j_ops_type_list.append(0)
+            else:
+                process_j_operation_list.append(np.random.choice([180, 220, 250, 290]))
+                machine_j_operation_list.append([3,4,5,6,7, 8])
+                job_j_ops_type_list.append(1)
         else:
-            process_j_operation_list.append(60)
-            machine_j_operation_list.append([3,4,5,6,7])
-            job_j_ops_type_list.append(1)
+            process_j_operation_list.append(np.random.choice([80, 90, 100, 60]))
+            machine_j_operation_list.append([0, 1, 2])
+            job_j_ops_type_list.append(0)
 
     process_time_list.append(process_j_operation_list)
     alternative_machine_list.append(machine_j_operation_list)
@@ -94,4 +100,4 @@ if __name__ == "__main__":
     df_process.to_csv('dataset3_process_time.csv', index=False)
     df_setup.to_csv('dataset3_setup_time.csv', index=False)
     df_machine.to_csv('dataset3_alternative_machine.csv', index=False)
-    df_ops_type.to_csv('dataset3_ops_type_list.csv', index=False)
+    df_ops_type.to_csv('dataset3_ops_type.csv', index=False)

@@ -338,7 +338,7 @@ class Process:
                             b = ops_name_list.index(job.operations[0].idx)
                             if machine in self.machine_store.items and machine.name in job.operations[
                                 0].alternative_machine_list:
-                                temp_setup_list.append(setup_get(machine, job.operations[0])+job.operations[0].process_time)
+                                temp_setup_list.append(setup_get(machine, job.operations[0])+job.operations[0].process_time+machine.name)
 
                             else:
                                 temp_setup_list.append(float('inf'))
@@ -353,7 +353,7 @@ class Process:
                             b = ops_name_list.index(job.operations[0].idx)
                             if machine in self.machine_store.items and machine.name in job.operations[
                                 0].alternative_machine_list:
-                                temp_setup_list.append(setup_get(machine, job.operations[0])+job.operations[0].process_time)
+                                temp_setup_list.append(setup_get(machine, job.operations[0])+job.operations[0].process_time+machine.name)
                             else:
                                 temp_setup_list.append(float('inf'))
                         if len(temp_setup_list) > 0:
@@ -366,13 +366,11 @@ class Process:
                     if len(self.waiting_job_store.items) > 0 and len(self.machine_store.items) > 0 and np.min([job.shortest_setup_time for job in self.waiting_job_store.items]) != float('inf'):
                         machine = yield self.machine_store.get()
                         job = yield self.waiting_job_store.get()
+                        #print(machine.name, job.operations[0].alternative_machine_list)
                         if machine.name not in job.operations[0].alternative_machine_list:
-                            print("?????")
+                            print("a;a;a;?????")
                         self.env.process(self._do_working(job, machine))
-
-
                 yield self.decision_time_step
-
         elif self.mode == 'ssu':
             while True:
                 yield self.env.timeout(0)
@@ -382,11 +380,10 @@ class Process:
                     for machine in self.sorting_res_store:
                         temp_setup_list = list()
                         for job in self.waiting_job_store.items:
-                            a = ops_name_list.index(machine.setup)
-                            b = ops_name_list.index(job.operations[0].idx)
-                            if machine in self.machine_store.items and machine.name in job.operations[
-                                0].alternative_machine_list:
-                                temp_setup_list.append(setup_list[a][b])
+                            if machine in self.machine_store.items and \
+                                    machine.name in job.operations[0].alternative_machine_list:
+                                temp_setup_list.append(setup_get(machine, job.operations[0])-machine.name)
+
                             else:
                                 temp_setup_list.append(float('inf'))
                         if len(temp_setup_list) > 0:
@@ -396,21 +393,25 @@ class Process:
                     for job in self.waiting_job_store.items:
                         temp_setup_list = list()
                         for machine in self.sorting_res_store:
-                            a = ops_name_list.index(machine.setup)
-                            b = ops_name_list.index(job.operations[0].idx)
-                            if machine in self.machine_store.items and machine.name in job.operations[
-                                0].alternative_machine_list:
-                                temp_setup_list.append(setup_list[a][b])
+                            if machine in self.machine_store.items and machine.name in job.operations[0].alternative_machine_list:
+                                temp_setup_list.append(setup_get(machine, job.operations[0])-machine.name)
                             else:
                                 temp_setup_list.append(float('inf'))
                         if len(temp_setup_list) > 0:
                             job.shortest_setup_time = min(temp_setup_list)
                     self.machine_store.items.sort(key=lambda machine: machine.shortest_setup_time)
                     self.waiting_job_store.items.sort(key=lambda job: job.shortest_setup_time)
-                    if len(self.waiting_job_store.items) > 0 and len(self.machine_store.items) > 0:
+                    # print("전", [machine.shortest_setup_time for machine in self.machine_store.items])
+                    # print("후", [job.shortest_setup_time for job in self.waiting_job_store.items])
+                    if len(self.waiting_job_store.items) > 0 and len(self.machine_store.items) > 0 and np.min([job.shortest_setup_time for job in self.waiting_job_store.items]) != float('inf'):
                         machine = yield self.machine_store.get()
                         job = yield self.waiting_job_store.get()
+                        if machine.name not in job.operations[0].alternative_machine_list:
+                            print(machine.name, job.operations[0].alternative_machine_list)
+                            print("?????")
+
                         self.env.process(self._do_working(job, machine))
+
                 yield self.decision_time_step
     def _do_working(self, job, machine):
         with machine.request() as req:
@@ -420,28 +421,21 @@ class Process:
             machine.idle_complete_setup_start(job)
             machine.est_setup = setup_time
             machine.est_process = job.operations[0].process_time
-            soe = 0.001
+            soe = 0.5
             machine.current_setup_time = setup_time
             machine.current_setup_time_abs = self.env.now+setup_time
             process_time = job.operations[0].process_time
             machine.current_process_time = process_time
             machine.current_process_time_abs = self.env.now+setup_time+process_time
             setup_time = np.random.gamma(shape=(1 / soe) ** 2, scale=(soe ** 2) * setup_time)
-
             yield self.env.timeout(setup_time)#np.random.gamma(shape=(1 / soe) ** 2, scale=(soe ** 2) * setup_list[a][b]))
-            # if machine.name == 1:
-            #     print("setup 끝", self.env.now)
             machine.setup_complete_process_start(job)
-            soe = 0.001
+            soe = 0.5
             process_time = np.random.gamma(shape=(1 / soe) ** 2, scale=(soe ** 2) * process_time)
-
             yield self.env.timeout(process_time)#np.random.uniform(0.8*process_time, 1.2*process_time))
-            # if machine.name == 1:
-            #     print("process 끝", self.env.now)
             job.operation_complete()
             machine.process_complete_idle_start()
         self.machine_store.put(machine)
-
         if len(job.operations) == 0:
             self.completed_job_store.put(job)
             if len(self.completed_job_store.items) != sum(self.scheduling_problem):
@@ -459,11 +453,14 @@ def setup_get(machine, ops):
             machine_setup_type = flatten_all_ops_list[ops_name_list.index(machine.setup)].ops_type
             ops_setup_type = flatten_all_ops_list[ops_name_list.index(ops.idx)].ops_type
             if (int(machine_setup_jobtype) == int(ops.job_type)) and (machine_setup_type == ops_setup_type):
+
                 setup = 0
             elif (int(machine_setup_jobtype) == int(ops.job_type)) and (machine_setup_type != ops_setup_type):
+
                 setup = 20
             elif (int(machine_setup_jobtype) != int(ops.job_type)) and (machine_setup_type == ops_setup_type):
-                setup = 40
+
+                setup = 90
             else:
                 setup = 60
         else:
@@ -473,11 +470,13 @@ def setup_get(machine, ops):
             if (int(machine_setup_jobtype) == int(ops.job_type)) and (machine_setup_type == ops_setup_type):
                 setup = 0
             elif (int(machine_setup_jobtype) == int(ops.job_type)) and (machine_setup_type != ops_setup_type):
+
                 setup = 20
             elif (int(machine_setup_jobtype) != int(ops.job_type)) and (machine_setup_type == ops_setup_type):
-                setup = 40
+
+                setup = 120
             else:
-                setup = 60
+                setup = 120
     else:
         if len(machine.setup) == 4:
             machine_setup_jobtype = machine.setup[:2]
@@ -501,10 +500,10 @@ def setup_get(machine, ops):
             elif (int(machine_setup_jobtype) == int(ops.job_type)) and (machine_setup_type != ops_setup_type):
                 setup = 30
             elif (int(machine_setup_jobtype) != int(ops.job_type)) and (machine_setup_type == ops_setup_type):
-                setup = 50
+                setup = 60
 
             else:
-                setup = 50
+                setup = 60
     return setup
 
 
