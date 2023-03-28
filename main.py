@@ -74,10 +74,9 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
 
         avail_action = env.get_avail_actions()
         action = agent.sample_action(node_representation, avail_action, epsilon)
-
         reward, done, info = env.step(action)
-        reward *= 1/5
-#        print(reward)
+        reward /=200
+
 
         agent.buffer.memory(node_feature_machine,num_waiting_operations, edge_index_machine, info, reward, done, avail_action)
         episode_reward += reward
@@ -95,21 +94,21 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
         if e >= train_start:
             st = time.time()
             loss = agent.learn(regularizer=0)
+
             sum_learn += time.time()-st
             losses.append(loss.detach().item())
         if epsilon >= min_epsilon:
             epsilon = epsilon - anneal_epsilon
         else:
             epsilon = min_epsilon
-        #print(episode_reward, done)
-    if e >= train_start:
-        print("makespan", env.env.now)
-        print("Total reward in episode {} = {}, epsilon : {}, time_step : {}, episode_duration : {}, training_duration : {}".format(
-                                                                                                e,
-                                                                                                np.round(episode_reward, 3),
-                                                                                                np.round(epsilon, 3),
-                                                                                                t, np.round(time.time()-start, 3),
-        sum_learn))
+
+
+    print("Total reward in episode {} = {}, epsilon : {}, time_step : {}, episode_duration : {}, training_duration : {}".format(
+                                                                                            e,
+                                                                                            np.round(episode_reward, 3),
+                                                                                            np.round(epsilon, 3),
+                                                                                            t, np.round(time.time()-start, 3),
+    sum_learn))
     return episode_reward, epsilon, t, eval
 
 def main():

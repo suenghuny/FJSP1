@@ -82,12 +82,13 @@ class Job():
 # Machine 객체이고 idle, setup, process 시간 등을 기록함
 class Machine(simpy.Resource):
     global all_ops_list, flatten_all_ops_lis
-    def __init__(self, env, name, waiting_job_store, production_list, workcenter, capacity=1, home = None):
+    def __init__(self, env, name, waiting_job_store, production_list, workcenter, RL_ENV,capacity=1, home = None, ):
         super().__init__(env, capacity=capacity)
         self.env = env
         self.home = home
         self.workcenter = workcenter
         self.name = name
+        self.RL_ENV = RL_ENV
         self.recent_action = 0
         self.last_setup_remain_time = None
         self.last_process_remain_time = None
@@ -100,7 +101,7 @@ class Machine(simpy.Resource):
         self.production_list = production_list
         self.machine_selection_indicator = 1
         self.count_ = 0
-        self.action_history = [0 for _ in range(num_machines + 1)]
+        #self.action_history = [0 for _ in range(num_machines + 1)]
         self.last_status = 'idle'
         self.idle_history = 0
         self.setup_history = 0
@@ -114,17 +115,28 @@ class Machine(simpy.Resource):
         self.last_recorded_idle = 0
         self.last_recorded_setup = None
         self.last_recorded_process = None
+
+
+        self.last_recorded_idle_for_reward = 0
+        self.last_recorded_setup_for_reward = None
+        self.last_recorded_process_for_reward = None
+
         self.setup_start = 0
         self.process_start = 0
         self.q_value = 0
         self.idle_start_list = [0]
-        self.action_history = [0 for i in range(len(flatten_all_ops_list) + 1)]
-        self.action_space = [False for i in range(len(flatten_all_ops_list) + 1)]
+        #self.action_history = [0 for i in range(len(flatten_all_ops_list) + 1)]
+        #self.action_space = [False for i in range(len(ops_name_list) + 2)]
         self.status = 'idle'
-
+        self.reward = 0
+        self.reward_record = 0
         self.last_recorded_first_idle = None
         self.last_recorded_first_setup = None
         self.last_recorded_first_process = None
+
+        self.last_setup_history = 0
+        self.last_process_history =0
+        self.last_idle_history=0
 
 
         self.remaining_setup = 0
@@ -143,7 +155,14 @@ class Machine(simpy.Resource):
     def idle_complete_setup_start(self, job):
         self.status = 'setup'
         self.current_working_job  = job
+
+        self.reward += -(self.env.now - self.last_recorded_idle)
+        self.reward_record += -(self.env.now - self.last_recorded_idle)
+
+
         self.last_recorded_setup = self.env.now
+        self.last_recorded_setup_for_reward = self.env.now
+
         self.setup_start = self.env.now
         self.current_idle_time = None
         self.current_idle_time_abs = None
@@ -158,10 +177,18 @@ class Machine(simpy.Resource):
         # if self.name == 1:
         #     print("setup 더하기", self.env.now - self.last_recorded_set
         self.setup_history += self.env.now - self.last_recorded_setup
-        self.home.reward += -(self.env.now - self.last_recorded_setup) / 60
+        self.last_setup_history = self.setup_history
+
+        # self.reward += -(self.env.now - self.last_recorded_setup)
+        # self.reward_record += -(self.env.now - self.last_recorded_setup)
+
+
+
         self.setup = job.operations[0].idx
         self.last_recorded_process = self.env.now
+        self.last_recorded_process_for_reward = self.env.now
         self.last_recorded_setup = self.env.now
+        self.last_recorded_setup_for_reward = self.env.now
         self.process_start = self.env.now
         self.current_setup_time = None
         self.current_setup_time_abs = None
@@ -173,9 +200,14 @@ class Machine(simpy.Resource):
 
     def process_complete_idle_start(self):
         self.status = 'idle'
+
+        self.reward += -(self.env.now - self.last_recorded_process)
+        self.reward_record += -(self.env.now - self.last_recorded_process)
+
         self.process_history += self.env.now - self.last_recorded_process
         self.current_working_job = None
         self.last_recorded_idle = self.env.now
+        self.last_recorded_idle_for_reward = self.env.now
         self.current_process_time = None
         self.current_process_time_abs = None
         self.process_complete_idle_start_check = True
@@ -188,9 +220,10 @@ class Machine(simpy.Resource):
 
 class Process:
     global num_ops, num_job_type, num_jobs, num_machines, setup_list, production_number
-    def __init__(self, env, mode='agent', test=False, eps=False):
+    def __init__(self, env, RL_ENV, mode='agent', test=False, eps=False):
         self.env = env
         self.waiting_job_store = simpy.FilterStore(env)
+        self.RL_ENV = RL_ENV
         if test == False:
             selection = np.random.randint(0, len(problems))
             scheduling_problem = problems[selection]
@@ -215,7 +248,8 @@ class Process:
                                             self.waiting_job_store,
                                             self.production_list,
                                             workcenter_name[i],
-                                            home = self)
+                                            home = self,
+                                            RL_ENV = RL_ENV)
                                     for i in range(num_machines) ]
         self.dummy_res_store = list()
         for machine in self.machine_store.items:
@@ -227,7 +261,7 @@ class Process:
         self.process = self.env.process(self._execution())
         self.reward = 0
         self.decision_time_step = self.env.event()
-        self.action_space = np.arange(num_ops + 1)
+        self.action_space = np.arange(len(ops_name_list) + 2)
 
 
 
@@ -241,7 +275,9 @@ class Process:
                 self.sorting_res_store.sort(key=lambda machine: machine.q_value, reverse = True)
                 for m in self.sorting_res_store:
                     count += 1
-                    m.action_history[self.action[m.name]] += 1
+
+                    #m.action_history[self.action[m.name]] += 1
+                    #print(len(m.action_history), self.action[m.name])
                     if m in self.machine_store.items:
                         ops_idx = self.action[m.name]
 
@@ -258,8 +294,8 @@ class Process:
                                     print("?????")
                                 #print((machine.name, self.action[m.name]))
                             else:
-                                self.action[m.name] = self.action_space[-1] # 원래는 이 문장만 있었음
-
+                                self.action[m.name] = self.action_space[-2] # 원래는 이 문장만 있었음
+                                #print("안되")
                                 # for job in self.waiting_job_store.items:
                                 #     temp_setup_list = list()
                                 #     if m in self.machine_store.items and m.name in job.operations[0].alternative_machine_list:
@@ -283,8 +319,7 @@ class Process:
                                 #         print("?????")
                                 #     self.env.process(self._do_working(job, machine))
                                 # else:
-                                #     self.action[m.name] = self.action_space[-1]
-
+                                #     self.action[m.name] = self.action_space[-2]
                         else:
                             pass
                     else:
@@ -385,18 +420,19 @@ class Process:
             machine.idle_complete_setup_start(job)
             machine.est_setup = setup_time
             machine.est_process = job.operations[0].process_time
-            soe = 0.05
+            soe = 0.001
             machine.current_setup_time = setup_time
             machine.current_setup_time_abs = self.env.now+setup_time
             process_time = job.operations[0].process_time
             machine.current_process_time = process_time
-            setup_time = np.random.gamma(shape=(1 / soe) ** 2, scale=(soe ** 2) * setup_time)
             machine.current_process_time_abs = self.env.now+setup_time+process_time
+            setup_time = np.random.gamma(shape=(1 / soe) ** 2, scale=(soe ** 2) * setup_time)
+
             yield self.env.timeout(setup_time)#np.random.gamma(shape=(1 / soe) ** 2, scale=(soe ** 2) * setup_list[a][b]))
             # if machine.name == 1:
             #     print("setup 끝", self.env.now)
             machine.setup_complete_process_start(job)
-            soe = 0.05
+            soe = 0.001
             process_time = np.random.gamma(shape=(1 / soe) ** 2, scale=(soe ** 2) * process_time)
 
             yield self.env.timeout(process_time)#np.random.uniform(0.8*process_time, 1.2*process_time))
@@ -425,9 +461,9 @@ def setup_get(machine, ops):
             if (int(machine_setup_jobtype) == int(ops.job_type)) and (machine_setup_type == ops_setup_type):
                 setup = 0
             elif (int(machine_setup_jobtype) == int(ops.job_type)) and (machine_setup_type != ops_setup_type):
-                setup = 30
+                setup = 20
             elif (int(machine_setup_jobtype) != int(ops.job_type)) and (machine_setup_type == ops_setup_type):
-                setup = 60
+                setup = 40
             else:
                 setup = 60
         else:
@@ -437,9 +473,9 @@ def setup_get(machine, ops):
             if (int(machine_setup_jobtype) == int(ops.job_type)) and (machine_setup_type == ops_setup_type):
                 setup = 0
             elif (int(machine_setup_jobtype) == int(ops.job_type)) and (machine_setup_type != ops_setup_type):
-                setup = 30
+                setup = 20
             elif (int(machine_setup_jobtype) != int(ops.job_type)) and (machine_setup_type == ops_setup_type):
-                setup = 60
+                setup = 40
             else:
                 setup = 60
     else:
@@ -452,9 +488,9 @@ def setup_get(machine, ops):
             elif (int(machine_setup_jobtype) == int(ops.job_type)) and (machine_setup_type != ops_setup_type):
                 setup = 30
             elif (int(machine_setup_jobtype) != int(ops.job_type)) and (machine_setup_type == ops_setup_type):
-                setup = 120
+                setup = 50
             else:
-                setup = 120
+                setup = 50
         else:
             machine_setup_jobtype = machine.setup[:1]
             machine_setup_type = flatten_all_ops_list[ops_name_list.index(machine.setup)].ops_type
@@ -465,10 +501,10 @@ def setup_get(machine, ops):
             elif (int(machine_setup_jobtype) == int(ops.job_type)) and (machine_setup_type != ops_setup_type):
                 setup = 30
             elif (int(machine_setup_jobtype) != int(ops.job_type)) and (machine_setup_type == ops_setup_type):
-                setup = 120
+                setup = 50
 
             else:
-                setup = 120
+                setup = 50
     return setup
 
 
@@ -479,8 +515,8 @@ class RL_ENV:
         self.mode = mode
         np.random.seed(self.seed)
         self.env = simpy.Environment()
-        self.proc = Process(self.env, mode = mode)
-        self.action_space = np.arange(num_ops)
+        self.reward = 0
+        self.proc = Process(self.env, mode = mode, RL_ENV = self)
         self.prev_time = 0
         self.n_agents = num_machines
         self.n_actions = len(ops_name_list) + 1
@@ -491,7 +527,7 @@ class RL_ENV:
         self.status = np.eye(3)
         self.agent_id = np.eye(num_machines)
         self.event_log = list()
-        self.reward = 0
+
         self.last_time_step = 0
 
 
@@ -509,7 +545,7 @@ class RL_ENV:
         env_info = {"n_agents" : num_machines,
                     "job_feature_shape": sum(ops_length_list),  # + self.n_agents,
                     "machine_feature_shape" : 8 + num_jobs + max_ops_length+ len(workcenter), # + self.n_agents,
-                    "n_actions": len(ops_name_list) + 1
+                    "n_actions": len(ops_name_list) + 2
                     }
         print(env_info)
 
@@ -538,17 +574,43 @@ class RL_ENV:
                 result = True
             else:
                 result = False
+            # if ops == machine.current_working_job.operations[0].idx:
+            #     result = True
+            # else:
+            # #     result = False
+            # result = False
+
         return result
 
 
     def get_avail_actions(self):
         self.waiting_ops = [j.operations[0].idx for j in self.proc.waiting_job_store.items]
         avail_actions_by_agent = [[self._conditional(m, ops) for ops in ops_name_list] for m in self.proc.dummy_res_store]
-        for avail_actions in avail_actions_by_agent:
-            if True not in avail_actions:
-                avail_actions.append(True)
-            else:
+
+        # for avail_actions in avail_actions_by_agent:
+        #     if True not in avail_actions:
+        #         avail_actions.append(True)
+        #     else:
+        #         avail_actions.append(False)
+
+        for m in self.proc.dummy_res_store:
+            idx = self.proc.dummy_res_store.index(m)
+            avail_actions = avail_actions_by_agent[idx]
+            if m.status == 'idle':
+                if True not in avail_actions:
+                    avail_actions.append(True)
+                    avail_actions.append(False)
+                else:
+                    avail_actions.append(False)
+                    avail_actions.append(False)
+
+            if m.status == 'setup' or m.status == 'working':
                 avail_actions.append(False)
+                avail_actions.append(True)
+
+
+
+
         return avail_actions_by_agent
 
 
@@ -611,11 +673,14 @@ class RL_ENV:
         self.waiting_ops = [j.operations[0].idx for j in self.proc.waiting_job_store.items]
         num_waiting_operations = [self.waiting_ops.count(ops)/self.proc.production_list[flatten_all_ops_list[ops_name_list.index(ops)].job_type]
                                     if ops in self.waiting_ops else 0 for ops in ops_name_list]
+
         for i in range(self.n_agents):
             machine = self.proc.dummy_res_store[i]
+            # if i == 0:
+            #     print(self.reward)
             if machine.status == 'setup':
                 machine.setup_history += self.env.now - machine.last_recorded_setup
-                self.reward += -(self.env.now - machine.last_recorded_setup) / 60
+                machine.last_setup_history = machine.setup_history
                 if time_delta != 0:
                     first_moment_process = 0
                     first_moment_setup = (self.env.now - machine.last_recorded_setup) / time_delta
@@ -632,6 +697,9 @@ class RL_ENV:
                 machine.last_recorded_setup = self.env.now
             if machine.status == 'working':
                 machine.process_history += self.env.now - machine.last_recorded_process
+
+                machine.last_process_history = machine.process_history
+
                 if time_delta != 0:
                     first_moment_process = (self.env.now - machine.last_recorded_process)/time_delta
 
@@ -649,7 +717,8 @@ class RL_ENV:
                 machine.last_recorded_process = self.env.now
             if machine.status == 'idle':
                 machine.idle_history += self.env.now - machine.last_recorded_idle
-                self.reward += -(self.env.now - machine.last_recorded_idle) / 60
+                machine.last_idle_history = machine.idle_history
+
                 if time_delta != 0:
                     first_moment_process = 0
                     first_moment_setup =0
@@ -702,6 +771,7 @@ class RL_ENV:
                                                              setup_remain_time,
                                                              process_remain_time]), setup, workcenter_encodes[machine.workcenter]])
             else:
+
                 node_feature = np.concatenate([np.array([machine.idle_history/self.env.now,
                                         machine.setup_history/self.env.now,
                                                              machine.process_history/self.env.now,
@@ -723,42 +793,22 @@ class RL_ENV:
     def reset(self):
 
         self.env = simpy.Environment()
-        self.proc = Process(self.env, mode=self.mode)
-        self.action_space = np.arange(num_ops)
+        self.reward = 0
+        self.proc = Process(self.env, mode = self.mode, RL_ENV = self)
         self.prev_time = 0
         self.n_agents = num_machines
         self.n_actions = len(ops_name_list) + 1
         self.last_action = np.zeros((self.n_agents, self.n_actions))
         ## observation 나타내기 위함
         self.setup = np.eye(num_ops)
-        self.current_working = np.eye(num_ops + 1)
+        self.current_working = np.eye(num_ops+1)
         self.status = np.eye(3)
         self.agent_id = np.eye(num_machines)
         self.event_log = list()
-        self.reward = 0
+        self.last_time_step = 0
+
 
     def step(self, actions, q_values = False):
-        #print(self.n_agents, len(self.proc.dummy_res_store))
-        # for i in range(self.n_agents):
-        #     mac = self.proc.dummy_res_store[i]
-        #     if mac.current_working_job != None:
-        #         self.event_log.append([self.env.now,
-        #                     mac.name,
-        #                     mac.status,
-        #                     mac.setup,
-        #                     mac.current_working_job.job_type,
-        #                     mac.current_working_job.name,
-        #                     mac.current_working_job.current_working_operation.idx])
-        #     else:
-        #         self.event_log.append([self.env.now,
-        #                     mac.name,
-        #                     mac.status,
-        #                     mac.setup,
-        #                     None,
-        #                     None,
-        #                     None])
-
-
         self.proc.action = actions
 
         if type(q_values) == 'list':
@@ -770,16 +820,36 @@ class RL_ENV:
                 self.env.step()
                 changed_actions = self.proc.action
             except simpy.core.EmptySchedule:
-                print(sum(self.proc.scheduling_problem), len(self.proc.completed_job_store.items))
+                #print(sum(self.proc.scheduling_problem), len(self.proc.completed_job_store.items))
                 done = True
                 changed_actions = self.proc.action
                 break
         actions_int = [int(a) for a in changed_actions]
-        self.last_action = np.eye(self.n_actions)[np.array(actions_int)]
+        #self.last_action = np.eye(self.n_actions)[np.array(actions_int)]
         self.proc.change = False
-        reward = deepcopy(self.reward)
-        #print(self.reward)
-        self.reward = 0
+        reward = 0
+        for machine in self.proc.dummy_res_store:
+
+            if machine.status == 'idle':
+                machine.reward += -(self.env.now - machine.last_recorded_idle_for_reward)
+                machine.reward_record += -(self.env.now - machine.last_recorded_idle_for_reward)
+                machine.last_recorded_idle_for_reward = self.env.now
+
+            elif machine.status == 'working':pass
+                # machine.reward += -(self.env.now - machine.last_recorded_process_for_reward)
+                # machine.reward_record += -(self.env.now - machine.last_recorded_process_for_reward)
+                #
+                # machine.last_recorded_process_for_reward = self.env.now
+
+            elif machine.status == 'setup':
+                machine.reward += -(self.env.now - machine.last_recorded_setup_for_reward)
+                machine.reward_record += -(self.env.now - machine.last_recorded_setup_for_reward)
+                machine.last_recorded_setup_for_reward = self.env.now
+
+
+
+            reward += machine.reward
+            machine.reward = 0
         #print(reward)
         return reward, done, changed_actions
 

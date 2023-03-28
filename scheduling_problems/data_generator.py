@@ -13,8 +13,8 @@ import numpy as np
 # num_jobs = 100
 
 # # #시나리오 3
-num_job_type = 12
-num_machines = 35
+num_job_type = 4
+num_machines = 7
 #num_jobs = 120
 
 # num_job_type = 3
@@ -34,8 +34,8 @@ def random_alter_machine_generator(num_machines):
     result = machine_list[:num]
     return result
 
-da = [0, 2, 4, 6, 7, 9, 11, 13, 15, 17, 18, 20, 22, 24, 25, 27, 29, 31, 33, 35, 36, 38, 40, 42, 44, 46, 48, 50, 51, 53, 55, 57, 58,60, 62]
-wb = [i for i in range(63) if i not in da]
+da = [0, 2, 4, 6, 7, 9, 11,10, 13, 15, 17, 18, 19]
+wb = [i for i in range(19) if i not in da]
 def setup_generator():
     setup_list = np.zeros([len(ops_name_list), len(ops_name_list)])
     for i in range(len(ops_name_list)):
@@ -60,22 +60,27 @@ ops_name_list = list()
 process_time_list = list()
 
 alternative_machine_list = list()
-temp = [2, 2, 2, 4, 4, 4, 4, 6, 6, 6, 8, 8]
+temp = [3, 4, 5, 3]
+ops_type_list = list()
 for j in range(num_job_type):
     process_j_operation_list = list()
     machine_j_operation_list = list()
+    job_j_ops_type_list = list()
     num_operations = temp[j]
     for k in range(num_operations):
         ops_name_list.append("{}_{}".format(j, k))
         if k % 2 == 0:
-            process_j_operation_list.append(1.6)
-            machine_j_operation_list.append([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14])
+            process_j_operation_list.append(20)
+            machine_j_operation_list.append([0,1,2])
+            job_j_ops_type_list.append(0)
         else:
-            process_j_operation_list.append(4.8)
-            machine_j_operation_list.append([15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34])
+            process_j_operation_list.append(60)
+            machine_j_operation_list.append([3,4,5,6,7])
+            job_j_ops_type_list.append(1)
 
     process_time_list.append(process_j_operation_list)
     alternative_machine_list.append(machine_j_operation_list)
+    ops_type_list.append(job_j_ops_type_list)
 
 if __name__ == "__main__":
     setup_list = setup_generator()
@@ -84,8 +89,9 @@ if __name__ == "__main__":
     df_process = pd.DataFrame(process_time_list)
     df_setup = pd.DataFrame(setup_list)
     df_machine = pd.DataFrame(alternative_machine_list)
-
+    df_ops_type = pd.DataFrame(ops_type_list)
     df_name.to_csv('dataset3_ops_name.csv', index=False)
     df_process.to_csv('dataset3_process_time.csv', index=False)
     df_setup.to_csv('dataset3_setup_time.csv', index=False)
     df_machine.to_csv('dataset3_alternative_machine.csv', index=False)
+    df_ops_type.to_csv('dataset3_ops_type_list.csv', index=False)

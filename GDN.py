@@ -32,24 +32,24 @@ class Network(nn.Module):
     def __init__(self, obs_and_action_size, hidden_size_q, action_size):
         super(Network, self).__init__()
         self.obs_and_action_size = obs_and_action_size
-        self.fcn_1 = nn.Linear(obs_and_action_size, hidden_size_q)
-        self.fcn_2 = nn.Linear(hidden_size_q, int(hidden_size_q/2))
-        self.fcn_3 = nn.Linear(int(hidden_size_q/2), int(hidden_size_q/4))
-        self.fcn_4 = nn.Linear(int(hidden_size_q/4), int(hidden_size_q/8))
-        self.fcn_5 = nn.Linear(int(hidden_size_q/8), action_size)
+        self.fcn_1 = nn.Linear(obs_and_action_size, hidden_size_q+10)
+        self.fcn_2 = nn.Linear(hidden_size_q+10, hidden_size_q-5)
+        self.fcn_3 = nn.Linear(hidden_size_q-5, hidden_size_q-20)
+        self.fcn_4 = nn.Linear(hidden_size_q-20, action_size)
+        #self.fcn_5 = nn.Linear(int(hidden_size_q/8), action_size)
         torch.nn.init.xavier_uniform_(self.fcn_1.weight)
         torch.nn.init.xavier_uniform_(self.fcn_2.weight)
         torch.nn.init.xavier_uniform_(self.fcn_3.weight)
         torch.nn.init.xavier_uniform_(self.fcn_4.weight)
-        torch.nn.init.xavier_uniform_(self.fcn_5.weight)
+        #torch.nn.init.xavier_uniform_(self.fcn_5.weight)
 
     def forward(self, obs_and_action):
 
         x = F.relu(self.fcn_1(obs_and_action))
         x = F.relu(self.fcn_2(x))
         x = F.relu(self.fcn_3(x))
-        x = F.relu(self.fcn_4(x))
-        q = self.fcn_5(x)
+        q = self.fcn_4(x)
+        #q = self.fcn_5(x)
         return q
 
 class NodeEmbedding(nn.Module):
@@ -590,7 +590,7 @@ class Agent:
         q_tot = self.VDN(q_tot)
         q_tot_tar = self.VDN_target(q_tot_tar)
         td_target = rewards*self.num_agent + self.gamma* (1-dones)*q_tot_tar
-        loss1 = F.mse_loss(q_tot, td_target.detach())
+        loss1 = F.huber_loss(q_tot, td_target.detach())
         loss = loss1
         self.optimizer.zero_grad()
         loss.backward()
