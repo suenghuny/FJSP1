@@ -13,9 +13,8 @@ import numpy as np
 # num_jobs = 100
 
 # # #시나리오 3
-temp = [4, 4, 5, 3]
+temp = [4, 4, 7, 3, 5, 4, 6,5]
 num_job_type = len(temp)
-num_machines = 9
 #num_jobs = 120
 
 # num_job_type = 3
@@ -72,15 +71,15 @@ for j in range(num_job_type):
         ops_name_list.append("{}_{}".format(j, k))
         if np.random.choice([0,1], p = [0.9,0.1])== 0:
             if k % 2 == 0:
-                process_j_operation_list.append(np.random.choice([80, 90, 100, 60]))
+                process_j_operation_list.append(np.random.choice([80, 90, 100, 60, 50]))
                 machine_j_operation_list.append([0,1,2])
                 job_j_ops_type_list.append(0)
             else:
-                process_j_operation_list.append(np.random.choice([180, 220, 250, 290]))
-                machine_j_operation_list.append([3,4,5,6,7, 8])
+                process_j_operation_list.append(np.random.choice([180, 220, 250, 290, 270, 150]))
+                machine_j_operation_list.append([3,4,5,6, 7,8])
                 job_j_ops_type_list.append(1)
         else:
-            process_j_operation_list.append(np.random.choice([80, 90, 100, 60]))
+            process_j_operation_list.append(np.random.choice([40, 50, 60, 30]))
             machine_j_operation_list.append([0, 1, 2])
             job_j_ops_type_list.append(0)
 

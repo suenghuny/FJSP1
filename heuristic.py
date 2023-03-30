@@ -10,7 +10,7 @@ import time
 from Environment_Multi.FJSP_multi import RL_ENV
 from cfg import get_cfg
 cfg = get_cfg()
-
+from scheduling_problems.problem_generator import sp1
 vessl_on = cfg.vessl
 if vessl_on == True:
     import vessl
@@ -77,34 +77,19 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
         reward, done, info = env.step(action)
         reward /=200
 
-
-        agent.buffer.memory(node_feature_machine,num_waiting_operations, edge_index_machine, info, reward, done, avail_action)
         episode_reward += reward
 
         t += 1
-        if t % 50000 <= 0.1:
-            if vessl_on == True:
-                agent.save_model(e, t, epsilon, output_dir+"{}.pt".format(t))
-            else:
-                agent.save_model(e,t,epsilon, output_dir+"{}.pt".format(t))
         step += 1
         if (t % 5000 == 0) and (t >0):
             eval = True
 
-        if e >= train_start:
+        if epsilon >= min_epsilon:
+            epsilon = epsilon - anneal_epsilon
+        else:
+            epsilon = min_epsilon
 
-            if epsilon >= min_epsilon:
-                epsilon = epsilon - anneal_epsilon
-            else:
-                epsilon = min_epsilon
 
-            st = time.time()
-            loss = agent.learn(regularizer=0)
-
-            sum_learn += time.time()-st
-            losses.append(loss.detach().item())
-
-    print(agent.scheduler.get_last_lr()[0])
     print("Total reward in episode {} = {}, epsilon : {}, time_step : {}, episode_duration : {}, training_duration : {}".format(
                                                                                             e,
                                                                                             np.round(episode_reward, 3),
@@ -114,8 +99,8 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
     return episode_reward, epsilon, t, eval
 
 def main():
-
-    env1 = RL_ENV()
+    heuristic = 'ssu'
+    env1 = RL_ENV(mode = heuristic)
     hidden_size_obs = cfg.hidden_size_obs       # GAT 해당(action 및 node representation의 hidden_size)
     hidden_size_comm = cfg.hidden_size_comm
     hidden_size_Q = cfg.hidden_size_Q         # GAT 해당
@@ -128,36 +113,29 @@ def main():
     learning_rate = cfg.lr
     n_multi_head = cfg.n_multi_head
     dropout = cfg.dropout
-    num_episode = cfg.num_episode
+    num_episode = 300
     train_start = cfg.train_start
-    epsilon = cfg.epsilon
-    min_epsilon = cfg.min_epsilon
+    epsilon = 0
+    min_epsilon = 0
     anneal_steps = cfg.anneal_steps
     teleport_probability = cfg.teleport_probability
     gtn_beta = cfg.gtn_beta
     anneal_epsilon = (epsilon - min_epsilon) / anneal_steps
 
     if vessl_on == True:
-        output_dir = "output_dir/"
+        output_dir = "output_heuristic/"
     else:
-        output_dir = "../output_dir/"
+        output_dir = "../output_heuristic/"
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    log_dir = 'output_dir/logs/'
+    log_dir = 'output/logs/'
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
     initializer = True
-    # writer = SummaryWriter(log_dir,
-    #                        comment="map_name_{}_GNN_{}_lr_{}_hiddensizeobs_{}_hiddensizeq_{}_nrepresentationobs_{}_nrepresentationcomm_{}.csv".format(
-    #                            map_name1, GNN, learning_rate, hidden_size_obs, hidden_size_Q, n_representation_obs,
-    #                            n_representation_comm))
 
-    # "n_agents": num_machines,
-    # "obs_shape": 7 + num_jobs + max_ops_length,  # + self.n_agents,
-    # "n_actions": len(ops_name_list) + 1
 
     agent1 = Agent(num_agent=env1.get_env_info()["n_agents"],
                    feature_size_job=env1.get_env_info()["job_feature_shape"],
@@ -178,8 +156,6 @@ def main():
                    GNN=GNN,
                    teleport_probability = teleport_probability,
                    gtn_beta = gtn_beta)
-
-
     t = 0
     epi_r = []
     win_rates = []
@@ -189,15 +165,19 @@ def main():
         epi_r.append(episode_reward)
         #writer.add_scalar("episode_reward/train", episode_reward, e)
 
-        if e % 100 == 1:
+        if e % 100 == 0:
             if vessl_on == True:
                 vessl.log(step = e, payload = {'reward' : np.mean(epi_r)})
                 epi_r = []
                 r_df= pd.DataFrame(epi_r)
-                r_df.to_csv(output_dir+"reward.csv")
+                r_df.to_csv(output_dir+"reward_{}_{}.csv".format(str(sp1), heuristic))
             else:
+                print("평균", np.mean(epi_r), heuristic)
                 r_df= pd.DataFrame(epi_r)
-                r_df.to_csv(output_dir+"reward.csv")
+                r_df.to_csv(output_dir+"reward_{}_{}.csv".format(str(sp1), heuristic))
+    print("평균", np.mean(epi_r), heuristic)
+    r_df = pd.DataFrame(epi_r)
+    r_df.to_csv(output_dir + "reward_{}_{}.csv".format(str(sp1), heuristic))
         #
         # if eval == True:
         #     win_rate = evaluation(env1, agent1, 32)

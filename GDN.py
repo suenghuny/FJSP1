@@ -1,5 +1,5 @@
 
-
+from torch.optim.lr_scheduler import StepLR
 
 import torch
 import torch.nn as nn
@@ -69,6 +69,7 @@ class NodeEmbedding(nn.Module):
         torch.nn.init.xavier_uniform_(self.fcn_4.weight)
 
     def forward(self, node_feature):
+
         x = F.relu(self.fcn_1(node_feature))
         x = F.relu(self.fcn_2(x))
         x = F.relu(self.fcn_3(x))
@@ -346,7 +347,7 @@ class Agent:
                                list(self.node_representation.parameters()) + \
                                list(self.action_representation.parameters())
         self.optimizer = optim.RMSprop(self.eval_params, lr=learning_rate)
-
+        self.scheduler = StepLR(optimizer=self.optimizer, step_size=38000, gamma=0.1)
         self.time_check =[[],[]]
 
 
@@ -607,10 +608,6 @@ class Agent:
                              agent_id=agent_id,
                              target=True) for agent_id in range(self.num_agent)]
 
-        q_duration = time.time() - start
-
-
-        # start = time.time()
         q_tot = torch.stack(q, dim=1)
         q_tot_tar = torch.stack(q_tar, dim=1)
         q_tot = self.VDN(q_tot)
@@ -620,8 +617,9 @@ class Agent:
         loss = loss1
         self.optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.eval_params, 10)
+        torch.nn.utils.clip_grad_norm_(self.eval_params,1)
         self.optimizer.step()
+        #self.scheduler.step()
         # if episode % 20 == 0 and episode > 0:
         #     self.Q_tar.load_state_dict(self.Q.state_dict())
         #     self.VDN_target.load_state_dict(self.VDN.state_dict())
