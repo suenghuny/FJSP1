@@ -637,8 +637,20 @@ class RL_ENV:
         return edge_index
 
 
-    def get_edge_index_machine_machine(self):
-        return self.get_edge_index_m_to_m
+    def get_edge_index_machine_machine(self, fully_connected = False):
+        if fully_connected == True:
+            edge_index = self.get_edge_index_m_to_m
+        else:
+            edge_index = [[], []]
+            for i in range(self.n_agents):
+                machine = self.proc.dummy_res_store[i]
+                if machine.status == 'setup' or machine.status == 'working':
+                    pass
+                else:
+                    for j in range(self.n_agents):
+                        edge_index[0].append(i)
+                        edge_index[1].append(j)
+        return edge_index
 
     def get_node_feature_job(self):
         job_features = list()
