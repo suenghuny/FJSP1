@@ -17,7 +17,6 @@ from GTN.utils import _norm
 from GTN.model_fastgtn import FastGTNs
 from scipy.sparse import csr_matrix
 
-from kfac.preconditioner import KFACPreconditioner
 
 
 class VDN(nn.Module):
@@ -434,7 +433,7 @@ class Agent:
 
                 node_embedding_machine_obs = self.node_representation(node_feature_machine)
 
-                edge_index_machine = torch.tensor(edge_index_machine, dtype=torch.long, device=device)
+                #edge_index_machine = torch.tensor(edge_index_machine, dtype=torch.long, device=device)
 
                 node_representation = self.func_machine_comm(node_embedding_machine_obs, edge_index_machine, n_node_features_machine,
                                                           mini_batch=mini_batch)
