@@ -537,7 +537,7 @@ class RL_ENV:
         num_agents = num_machines
         env_info = {"n_agents" : num_machines,
                     "job_feature_shape": sum(ops_length_list),  # + self.n_agents,
-                    "machine_feature_shape" : 8 + num_jobs + max_ops_length+ len(workcenter)+3+len(ops_name_list) + 1, # + self.n_agents,
+                    "machine_feature_shape" : 8 + num_jobs + max_ops_length+ len(workcenter)+3+len(ops_name_list) + 1+3, # + self.n_agents,
                     "n_actions": len(ops_name_list) + 1
                     }
         print(env_info)
@@ -672,7 +672,7 @@ class RL_ENV:
         return job_features
 
     def get_node_feature_machine(self):
-
+        status_encoding = np.eye(3)
         time_delta = (self.env.now - self.last_time_step)
         node_features = list()
         workcenter_encodes = np.eye(len(workcenter))
@@ -685,6 +685,7 @@ class RL_ENV:
             # if i == 0:
             #     print(self.reward)
             if machine.status == 'setup':
+                k = 0
                 machine.setup_history += self.env.now - machine.last_recorded_setup
                 machine.last_setup_history = machine.setup_history
                 if time_delta != 0:
@@ -700,6 +701,7 @@ class RL_ENV:
                 process_remain_time = 1
                 machine.last_recorded_setup = self.env.now
             if machine.status == 'working':
+                k = 1
                 machine.process_history += self.env.now - machine.last_recorded_process
 
                 machine.last_process_history = machine.process_history
@@ -718,6 +720,7 @@ class RL_ENV:
                 process_remain_time = (machine.current_process_time_abs - self.env.now)/machine.current_process_time
                 machine.last_recorded_process = self.env.now
             if machine.status == 'idle':
+                k = 2
                 machine.idle_history += self.env.now - machine.last_recorded_idle
                 machine.last_idle_history = machine.idle_history
 
@@ -806,7 +809,7 @@ class RL_ENV:
                                                              second_moment_setup,
                                                              second_moment_process,
                                                                  setup_remain_time,
-                                                                 process_remain_time]), setup, workcenter_encodes[machine.workcenter], self.action_history[i]])
+                                                                 process_remain_time]), setup, workcenter_encodes[machine.workcenter], self.action_history[i], status_encoding[k]])
                 else:
                     node_feature = np.concatenate([np.array([0, 0, 0,
                                                              first_moment_idle,
@@ -818,7 +821,7 @@ class RL_ENV:
                                                              second_moment_process,
                                                              setup_remain_time,
                                                              process_remain_time]), setup,
-                                                   workcenter_encodes[machine.workcenter], np.array(self.action_history[i])/num_total_action])
+                                                   workcenter_encodes[machine.workcenter], np.array(self.action_history[i])/num_total_action, status_encoding[k]])
 
             else:
                 node_feature = np.concatenate([np.array([machine.idle_history/self.env.now,
@@ -832,7 +835,7 @@ class RL_ENV:
                                                          second_moment_setup,
                                                          second_moment_process,
                                                              setup_remain_time,
-                                                             process_remain_time]), setup, workcenter_encodes[machine.workcenter], np.array(self.action_history[i])/total_num_ops])
+                                                             process_remain_time]), setup, workcenter_encodes[machine.workcenter], np.array(self.action_history[i])/total_num_ops, status_encoding[k]])
 
             node_features.append(node_feature)
 

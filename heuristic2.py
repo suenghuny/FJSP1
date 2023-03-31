@@ -8,10 +8,9 @@ import sys
 import os
 import time
 from Environment_Multi.FJSP_multi import RL_ENV
-from scheduling_problems.problem_generator import sp1
 from cfg import get_cfg
 cfg = get_cfg()
-
+from scheduling_problems.problem_generator import sp1
 vessl_on = cfg.vessl
 if vessl_on == True:
     import vessl
@@ -100,8 +99,8 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
     return episode_reward, epsilon, t, eval
 
 def main():
-
-    env1 = RL_ENV()#mode = 'spsu')
+    heuristic = 'spsu'
+    env1 = RL_ENV(mode = heuristic)
     hidden_size_obs = cfg.hidden_size_obs       # GAT 해당(action 및 node representation의 hidden_size)
     hidden_size_comm = cfg.hidden_size_comm
     hidden_size_Q = cfg.hidden_size_Q         # GAT 해당
@@ -124,9 +123,9 @@ def main():
     anneal_epsilon = (epsilon - min_epsilon) / anneal_steps
 
     if vessl_on == True:
-        output_dir = "output_test/"
+        output_dir = "output_heuristic/"
     else:
-        output_dir = "../output_test/"
+        output_dir = "../output_heuristic/"
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -136,14 +135,7 @@ def main():
         os.makedirs(log_dir)
 
     initializer = True
-    # writer = SummaryWriter(log_dir,
-    #                        comment="map_name_{}_GNN_{}_lr_{}_hiddensizeobs_{}_hiddensizeq_{}_nrepresentationobs_{}_nrepresentationcomm_{}.csv".format(
-    #                            map_name1, GNN, learning_rate, hidden_size_obs, hidden_size_Q, n_representation_obs,
-    #                            n_representation_comm))
 
-    # "n_agents": num_machines,
-    # "obs_shape": 7 + num_jobs + max_ops_length,  # + self.n_agents,
-    # "n_actions": len(ops_name_list) + 1
 
     agent1 = Agent(num_agent=env1.get_env_info()["n_agents"],
                    feature_size_job=env1.get_env_info()["job_feature_shape"],
@@ -164,7 +156,6 @@ def main():
                    GNN=GNN,
                    teleport_probability = teleport_probability,
                    gtn_beta = gtn_beta)
-    agent1.load_model("../output_dir/750000.pt")
     t = 0
     epi_r = []
     win_rates = []
@@ -179,14 +170,14 @@ def main():
                 vessl.log(step = e, payload = {'reward' : np.mean(epi_r)})
                 epi_r = []
                 r_df= pd.DataFrame(epi_r)
-                r_df.to_csv(output_dir+"reward_test.csv")
+                r_df.to_csv(output_dir+"reward_{}_{}.csv".format(str(sp1), heuristic))
             else:
-                print("평균", np.mean(epi_r))
+                print("평균", np.mean(epi_r), heuristic)
                 r_df= pd.DataFrame(epi_r)
-                r_df.to_csv(output_dir+"reward_{}_test.csv".format(str(sp1)))
-    print("평균", np.mean(epi_r))
+                r_df.to_csv(output_dir+"reward_{}_{}.csv".format(str(sp1), heuristic))
+    print("평균", np.mean(epi_r), heuristic)
     r_df = pd.DataFrame(epi_r)
-    r_df.to_csv(output_dir + "reward_{}_test.csv".format(str(sp1)))
+    r_df.to_csv(output_dir + "reward_{}_{}.csv".format(str(sp1), heuristic))
         #
         # if eval == True:
         #     win_rate = evaluation(env1, agent1, 32)
