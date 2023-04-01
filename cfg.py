@@ -26,7 +26,7 @@ def get_cfg():
     parser.add_argument("--n_multi_head", type=int, default=1, help="number of multi head")
     parser.add_argument("--dropout", type=float, default=0.6, help="dropout")
     parser.add_argument("--num_episode", type=int, default=1000000, help="number of episode")
-    parser.add_argument("--train_start", type=int, default=100, help="number of train start")
+    parser.add_argument("--train_start", type=int, default=1, help="number of train start")
     parser.add_argument("--epsilon", type=float, default=1, help="initial value of epsilon greedy")
     parser.add_argument("--min_epsilon", type=float, default=0.01, help="minimum value of epsilon greedy")
     parser.add_argument("--anneal_steps", type=int, default=60000, help="anneal ratio of epsilon greedy")

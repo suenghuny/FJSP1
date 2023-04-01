@@ -51,8 +51,7 @@ class GraphAttentionLayer(nn.Module):
     def forward(self, h, edge_index, n_node_features, mini_batch = False):
 
         if mini_batch == False:
-            #adj = self.adj
-
+            h = h.squeeze(0)
             Wh = torch.mm(h, self.W)                                                    # adj.shape : (n_node, n_node)
 
                                                                                         # h.shape : (n_node, feature_size), self.W.shape : (feature_size, hidden_size)

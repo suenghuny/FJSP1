@@ -32,9 +32,18 @@ class Network(nn.Module):
         super(Network, self).__init__()
         self.obs_and_action_size = obs_and_action_size
         self.fcn_1 = nn.Linear(obs_and_action_size, hidden_size_q+10)
+        self.fcn_1bn = nn.BatchNorm1d(hidden_size_q+10)
+
         self.fcn_2 = nn.Linear(hidden_size_q+10, hidden_size_q-5)
+        self.fcn_2bn = nn.BatchNorm1d(hidden_size_q -5)
+
         self.fcn_3 = nn.Linear(hidden_size_q-5, hidden_size_q-20)
+        self.fcn_3bn = nn.BatchNorm1d(hidden_size_q-20)
+
+
         self.fcn_4 = nn.Linear(hidden_size_q - 20, hidden_size_q - 40)
+        self.fcn_4bn = nn.BatchNorm1d(hidden_size_q - 40)
+
         self.fcn_5 = nn.Linear(hidden_size_q-40, action_size)
         #self.fcn_5 = nn.Linear(int(hidden_size_q/8), action_size)
         torch.nn.init.xavier_uniform_(self.fcn_1.weight)
@@ -45,33 +54,59 @@ class Network(nn.Module):
         #torch.nn.init.xavier_uniform_(self.fcn_5.weight)
 
     def forward(self, obs_and_action):
+        if obs_and_action.dim() == 1:
+            obs_and_action = obs_and_action.unsqueeze(0)
+        #print(obs_and_action.dim())
 
-        x = F.relu(self.fcn_1(obs_and_action))
-        x = F.relu(self.fcn_2(x))
-        x = F.relu(self.fcn_3(x))
-        x = F.relu(self.fcn_4(x))
+        x = F.relu(self.fcn_1bn(self.fcn_1(obs_and_action)))
+        x = F.relu(self.fcn_2bn(self.fcn_2(x)))
+        x = F.relu(self.fcn_3bn(self.fcn_3(x)))
+        x = F.relu(self.fcn_4bn(self.fcn_4(x)))
         q = self.fcn_5(x)
         #q = self.fcn_5(x)
         return q
 
 class NodeEmbedding(nn.Module):
-    def __init__(self, feature_size, hidden_size, n_representation_obs):
+    def __init__(self, feature_size, hidden_size, n_representation_obs, machine= False, n_agent = False):
         super(NodeEmbedding, self).__init__()
         self.feature_size = feature_size
+
+        if machine == True:
+            self.fcn_1bn = nn.BatchNorm1d(n_agent)
+            self.fcn_2bn = nn.BatchNorm1d(n_agent)
+            self.fcn_3bn = nn.BatchNorm1d(n_agent)
+
+        else:
+            self.fcn_1bn = nn.BatchNorm1d(hidden_size + 10)
+            self.fcn_2bn = nn.BatchNorm1d(hidden_size + 10)
+            self.fcn_3bn = nn.BatchNorm1d(hidden_size + 10)
         self.fcn_1 = nn.Linear(feature_size, hidden_size+10)
         self.fcn_2 = nn.Linear(hidden_size+10, hidden_size+10)
+
         self.fcn_3 = nn.Linear(hidden_size+10, hidden_size+10)
+
+
         self.fcn_4 = nn.Linear(hidden_size+10, n_representation_obs)
         torch.nn.init.xavier_uniform_(self.fcn_1.weight)
         torch.nn.init.xavier_uniform_(self.fcn_2.weight)
         torch.nn.init.xavier_uniform_(self.fcn_3.weight)
         torch.nn.init.xavier_uniform_(self.fcn_4.weight)
 
-    def forward(self, node_feature):
+    def forward(self, node_feature, machine = False):
+        if machine == False:
+            if node_feature.dim() == 1:
+                node_feature = node_feature.unsqueeze(0)
 
-        x = F.relu(self.fcn_1(node_feature))
-        x = F.relu(self.fcn_2(x))
-        x = F.relu(self.fcn_3(x))
+        else:
+            if node_feature.dim() == 2:
+                node_feature = node_feature.unsqueeze(0)
+                #print("후", node_feature.shape)
+            #
+            #     print(node_feature.shape)
+
+        x = F.relu(self.fcn_1bn(self.fcn_1(node_feature)))
+        x = F.relu(self.fcn_2bn(self.fcn_2(x)))
+        x = F.relu(self.fcn_3bn(self.fcn_3(x)))
         node_representation = self.fcn_4(x)
         return node_representation
 
@@ -281,7 +316,7 @@ class Agent:
 
 
             self.node_representation = NodeEmbedding(feature_size=feature_size_machine, hidden_size=hidden_size_obs,
-                                                     n_representation_obs=n_representation_machine).to(device)  # 수정사항
+                                                     n_representation_obs=n_representation_machine, machine = True, n_agent = self.num_agent).to(device)  # 수정사항
 
             self.func_job_obs = GAT(nfeat = n_representation_job,
                                       nhid = hidden_size_obs,
@@ -368,6 +403,22 @@ class Agent:
             'optimizer' : self.optimizer.state_dict()}, "{}".format(path))
 
 
+    def eval_check(self, eval):
+        if eval == True:
+            self.node_representation_job_obs.eval()
+            self.node_representation.eval()
+            self.func_job_obs.eval()
+            self.func_machine_comm.eval()
+            self.Q.eval()
+            self.Q_tar.eval()
+        else:
+            self.node_representation_job_obs.train()
+            self.node_representation.train()
+            self.func_job_obs.train()
+            self.func_machine_comm.train()
+            self.Q.train()
+            self.Q_tar.train()
+
     def load_model(self, path):
         checkpoint = torch.load(path)
         e = checkpoint["e"]
@@ -405,17 +456,17 @@ class Agent:
                                                         device=device)
 
                     node_embedding_num_waiting_operations = self.node_representation_job_obs(num_waiting_operations)
-                    len_num_waiting_operations = node_embedding_num_waiting_operations.shape[0]
+                    len_num_waiting_operations = node_embedding_num_waiting_operations.shape[1]
 
-                    node_embedding_num_waiting_operations = node_embedding_num_waiting_operations.unsqueeze(0).expand([n_node_features_machine, len_num_waiting_operations])
-
-
+                    node_embedding_num_waiting_operations = node_embedding_num_waiting_operations.expand([n_node_features_machine, len_num_waiting_operations])
 
 
 
+
+                    #print("전", node_feature_machine.shape)
 #                    obs_n = obs.unsqueeze(1).expand([self.batch_size, self.action_size, self.n_representation_comm])
 
-                    node_embedding_machine_obs = self.node_representation(node_feature_machine)
+                    node_embedding_machine_obs = self.node_representation(node_feature_machine, machine = True)
                     edge_index_machine = torch.tensor(edge_index_machine, dtype=torch.long, device=device)
                     node_representation = self.func_machine_comm(node_embedding_machine_obs, edge_index_machine, n_node_features_machine, mini_batch = mini_batch)
                     #print(node_embedding_num_waiting_operations.shape, node_representation.shape)
@@ -431,6 +482,7 @@ class Agent:
                 len_num_waiting_operations = node_embedding_num_waiting_operations.shape[1]
                 node_embedding_num_waiting_operations = node_embedding_num_waiting_operations.unsqueeze(1).expand([self.batch_size, n_node_features_machine, len_num_waiting_operations])
 
+ #               print("후", node_feature_machine.shape)
                 node_embedding_machine_obs = self.node_representation(node_feature_machine)
 
                 #edge_index_machine = torch.tensor(edge_index_machine, dtype=torch.long, device=device)
@@ -527,6 +579,8 @@ class Agent:
 
         mask = torch.tensor(avail_action, device=device).bool()
         action = []
+        utility = list()
+
         for n in range(self.num_agent):
             obs = node_representation[n]
             Q = self.Q(obs)
@@ -536,12 +590,16 @@ class Agent:
 
             if np.random.uniform(0, 1) >= epsilon:
                 u = greedy_u
+                utility.append(Q[0][u].detach().item())
                 action.append(u)
             else:
                 u = np.random.choice(self.action_space, p=mask_n / np.sum(mask_n))
+                #print()
+                utility.append(Q[0][u].detach().item())
+
                 action.append(u)
         #print("sss", action)
-        return action
+        return action, utility
 
 
     def learn(self, regularizer):

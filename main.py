@@ -65,6 +65,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
         node_feature_machine, num_waiting_operations, edge_index_machine = env.get_heterogeneous_graph()
         n_node_feature_machine = np.array(node_feature_machine).shape[0]
         if GNN == 'GAT':
+            agent.eval_check(eval = True)
             node_representation = agent.get_node_representation(
                                                                 node_feature_machine,
                                                                 num_waiting_operations,
@@ -73,8 +74,8 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
                                                                 mini_batch=False)  # 차원 : n_agents X n_representation_comm
 
         avail_action = env.get_avail_actions()
-        action = agent.sample_action(node_representation, avail_action, epsilon)
-        reward, done, info = env.step(action)
+        action, utility_list = agent.sample_action(node_representation, avail_action, epsilon)
+        reward, done, info = env.step(action, utility_list)
         reward /=200
 
 
@@ -99,6 +100,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
                 epsilon = min_epsilon
 
             st = time.time()
+            agent.eval_check(eval = False)
             loss = agent.learn(regularizer=0)
 
             sum_learn += time.time()-st
