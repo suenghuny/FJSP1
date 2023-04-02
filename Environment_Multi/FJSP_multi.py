@@ -226,8 +226,8 @@ class Process:
         if test == False:
             selection = np.random.randint(0, len(problems))
             scheduling_problem = problems[selection]
-            #self.scheduling_problem = [int(p) + np.random.choice([-2, -1, 0, 1, 2]) for p in scheduling_problem]
-            self.scheduling_problem = [int(p) for p in scheduling_problem]
+            self.scheduling_problem = [int(p) + np.random.choice([-3,-2, -1, 0, 1, 2, 3]) for p in scheduling_problem]
+            #self.scheduling_problem = [int(p) for p in scheduling_problem]
 
 
         for k in range(len(self.scheduling_problem)):

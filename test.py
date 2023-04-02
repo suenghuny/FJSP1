@@ -74,8 +74,8 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
                                                                 mini_batch=False)  # 차원 : n_agents X n_representation_comm
 
         avail_action = env.get_avail_actions()
-        action = agent.sample_action(node_representation, avail_action, epsilon)
-        reward, done, info = env.step(action)
+        action,q = agent.sample_action(node_representation, avail_action, epsilon)
+        reward, done, info = env.step(action,q)
         reward /=200
 
         episode_reward += reward
@@ -164,7 +164,8 @@ def main():
                    GNN=GNN,
                    teleport_probability = teleport_probability,
                    gtn_beta = gtn_beta)
-    agent1.load_model("../output_dir/750000.pt")
+    agent1.load_model("../output_dir/600000.pt")
+    agent1.eval_check(eval=True)
     t = 0
     epi_r = []
     win_rates = []

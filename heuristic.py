@@ -57,7 +57,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
     epi_r = list()
     eval = False
     start = time.time()
-
+    agent.eval_check(eval=True)
     sum_learn = 0
 
     while not done:
@@ -73,7 +73,8 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
                                                                 mini_batch=False)  # 차원 : n_agents X n_representation_comm
 
         avail_action = env.get_avail_actions()
-        action = agent.sample_action(node_representation, avail_action, epsilon)
+        action,q = agent.sample_action(node_representation, avail_action, epsilon)
+
         reward, done, info = env.step(action)
         reward /=200
 
@@ -99,7 +100,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
     return episode_reward, epsilon, t, eval
 
 def main():
-    heuristic = 'ssu'
+    heuristic = 'spsu'
     env1 = RL_ENV(mode = heuristic)
     hidden_size_obs = cfg.hidden_size_obs       # GAT 해당(action 및 node representation의 hidden_size)
     hidden_size_comm = cfg.hidden_size_comm

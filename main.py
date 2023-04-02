@@ -140,9 +140,9 @@ def main():
     anneal_epsilon = (epsilon - min_epsilon) / anneal_steps
 
     if vessl_on == True:
-        output_dir = "output_dir/"
+        output_dir = "output_dir_random beer/"
     else:
-        output_dir = "../output_dir/"
+        output_dir = "../output_dir_random/"
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
