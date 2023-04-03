@@ -6,6 +6,7 @@ import os
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 from scheduling_problems.problem_generator import workcenter, num_machines, num_job_type, soe, process_time_list, ops_name_array, ops_name_list, alternative_machine_list, setup_list, problems, ops_type_list, workcenter_name
+import random
 import numpy as np
 
 
@@ -179,9 +180,6 @@ class Machine(simpy.Resource):
 
         # self.reward += -(self.env.now - self.last_recorded_setup)
         # self.reward_record += -(self.env.now - self.last_recorded_setup)
-
-
-
         self.setup = job.operations[0].idx
         self.last_recorded_process = self.env.now
         self.last_recorded_process_for_reward = self.env.now
@@ -225,7 +223,7 @@ class Process:
         if test == False:
             selection = np.random.randint(0, len(problems))
             scheduling_problem = problems[selection]
-            self.scheduling_problem = [int(p) + np.random.choice([-2, -1, 0, 1, 2]) for p in scheduling_problem]
+            self.scheduling_problem = [int(p) + random.choice([-2, -1, 0, 1, 2]) for p in scheduling_problem]
             #self.scheduling_problem = [int(p) for p in scheduling_problem]
 
         print(self.scheduling_problem)
@@ -396,7 +394,7 @@ class Process:
             setup_time = np.random.gamma(shape=(1 / soe) ** 2, scale=(soe ** 2) * setup_time)
             yield self.env.timeout(setup_time)#np.random.gamma(shape=(1 / soe) ** 2, scale=(soe ** 2) * setup_list[a][b]))
             machine.setup_complete_process_start(job)
-            soe = 0.1
+            soe = 0.5
             process_time = np.random.gamma(shape=(1 / soe) ** 2, scale=(soe ** 2) * process_time)
             yield self.env.timeout(process_time)#np.random.uniform(0.8*process_time, 1.2*process_time))
             job.operation_complete()

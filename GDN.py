@@ -18,6 +18,113 @@ from GTN.model_fastgtn import FastGTNs
 from scipy.sparse import csr_matrix
 
 
+class IQN(nn.Module):
+    def __init__(self, state_size, action_size, batch_size, layer_size=196, N=8):
+        super(IQN, self).__init__()
+        self.input_shape = state_size
+        self.batch_size = batch_size
+        # print(state_size)
+        self.action_size = action_size
+        print(action_size)
+        self.K = 32
+        self.N = N
+        self.n_cos = 64
+        self.layer_size = layer_size
+        self.pis = torch.FloatTensor([np.pi * i for i in range(self.n_cos)]).view(1, 1, self.n_cos).to(
+            device)  # Starting from 0 as in the paper
+
+        self.head = nn.Linear(self.input_shape, layer_size)  # cound be a cnn
+        self.cos_embedding = nn.Linear(self.n_cos, layer_size)
+
+        self.ff_1 = nn.Linear(layer_size, layer_size)
+        self.ff_1_bn = nn.BatchNorm1d(layer_size)
+
+        self.ff_2 = nn.Linear(layer_size, 256)
+        self.ff_2_bn = nn.BatchNorm1d(256)
+
+        self.ff_3 = nn.Linear(256, 196)
+        self.ff_3_bn = nn.BatchNorm1d(196)
+
+        self.ff_4 = nn.Linear(196, 128)
+        self.ff_4_bn = nn.BatchNorm1d(128)
+
+        self.ff_5 = nn.Linear(128, 64)
+        self.ff_5_bn = nn.BatchNorm1d(64)
+
+        self.ff_6 = nn.Linear(64, 64)
+        self.ff_6_bn = nn.BatchNorm1d(64)
+
+        self.ff_7 = nn.Linear(64, action_size)
+
+
+        torch.nn.init.xavier_uniform_(self.ff_1.weight)
+        torch.nn.init.xavier_uniform_(self.ff_2.weight)
+        torch.nn.init.xavier_uniform_(self.ff_3.weight)
+        torch.nn.init.xavier_uniform_(self.ff_4.weight)
+        torch.nn.init.xavier_uniform_(self.ff_5.weight)
+        torch.nn.init.xavier_uniform_(self.ff_6.weight)
+        torch.nn.init.xavier_uniform_(self.ff_7.weight)
+
+        # weight_init([self.head_1, self.ff_1])
+
+    def calc_cos(self, batch_size):
+        """
+        Calculating the cosinus values depending on the number of tau samples
+        """
+        taus = torch.rand(batch_size, self.N).to(device).unsqueeze(-1)  # (batch_size, self.N, 1)
+        cos = torch.cos(taus * self.pis)  # self.pis shape : 1,1,self.n_cos
+        assert cos.shape == (batch_size, self.N, self.n_cos), "cos shape is incorrect"
+        return cos, taus
+
+    def forward(self, input, cos, mini_batch):
+        N = self.N
+        """
+        Quantile Calculation depending on the number of tau
+        Return:
+        quantiles [ shape of (batch_size, num_tau, action_size)]
+        taus [shape of ((batch_size, num_tau, 1))]
+        """
+        if mini_batch == False:
+            batch_size = 1
+            input = input.unsqueeze(0)
+        else:
+            batch_size = self.batch_size
+
+        #batch_size = input.shape[0]
+
+        x = torch.relu(self.head(input.to(device)))                                       # x의 shape는 batch_size, layer_size
+        #cos, taus = self.calc_cos(batch_size)                                             # cos shape (batch, self.N, layer_size)
+        cos = cos.view(batch_size * N, self.n_cos)
+        cos_x = torch.relu(self.cos_embedding(cos)).view(batch_size, N, self.layer_size)  # (batch, n_tau, layer)
+
+        x = (x.unsqueeze(1) * cos_x).view(batch_size * N, self.layer_size)  # 이부분이 phsi * phi에 해당하는 부분
+        x = self.ff_1(x)
+        x = self.ff_1_bn(x)
+        x = torch.relu(x)
+        x = self.ff_2(x)
+        x = self.ff_2_bn(x)
+        x = torch.relu(x)
+        x = self.ff_3(x)
+        x = self.ff_3_bn(x)
+        x = torch.relu(x)
+
+        x = self.ff_4(x)
+        x = self.ff_4_bn(x)
+        x = torch.relu(x)
+
+        x = self.ff_5(x)
+        x = self.ff_5_bn(x)
+        x = torch.relu(x)
+
+        x = self.ff_6(x)
+        x = self.ff_6_bn(x)
+        x = torch.relu(x)
+
+        out = self.ff_7(x)
+        quantiles = out.view(batch_size, N, self.action_size)
+        q = quantiles.mean(dim=1)
+        return q
+
 
 class VDN(nn.Module):
 
@@ -341,8 +448,10 @@ class Agent:
 
 
 
-            self.Q = Network(n_representation_job+n_representation_machine+5, hidden_size_Q, self.action_size).to(device)
-            self.Q_tar = Network(n_representation_job+n_representation_machine+5, hidden_size_Q, self.action_size).to(device)
+            self.Q = IQN(n_representation_job+n_representation_machine+5, self.action_size, batch_size = self.batch_size).to(device)
+            self.Q_tar = IQN(n_representation_job + n_representation_machine + 5, self.action_size, batch_size=self.batch_size).to(device)
+            #Network(n_representation_job+n_representation_machine+5, hidden_size_Q).to(device)
+            #self.Q_tar = Network(n_representation_job+n_representation_machine+5, hidden_size_Q, self.action_size).to(device)
             self.Q_tar.load_state_dict(self.Q.state_dict())
 
             self.eval_params = list(self.VDN.parameters()) + \
@@ -550,17 +659,23 @@ class Agent:
 
         """
         if target == False:
+
+            cos, taus = self.Q.calc_cos(self.batch_size)
+
             obs_n = obs[:, agent_id]
-            q = self.Q(obs_n)
+            q = self.Q(obs_n, cos, mini_batch = True)
             actions = torch.tensor(actions, device = device).long()
             act_n = actions[:, agent_id].unsqueeze(1)                    # action.shape : (batch_size, 1)
             q = torch.gather(q, 1, act_n).squeeze(1)                     # q.shape :      (batch_size, 1)
             return q
         else:
             with torch.no_grad():
+
+                cos, taus = self.Q_tar.calc_cos(self.batch_size)
+
                 obs_next = obs
                 obs_next = obs_next[:, agent_id]
-                q_tar = self.Q_tar(obs_next)                        # q.shape :      (batch_size, action_size, 1)
+                q_tar = self.Q_tar(obs_next, cos, mini_batch = True)                        # q.shape :      (batch_size, action_size, 1)
                 avail_actions_next = torch.tensor(avail_actions_next, device = device).bool()
                 mask = avail_actions_next[:, agent_id]
                 q_tar = q_tar.masked_fill(mask == 0, float('-inf'))
@@ -577,12 +692,11 @@ class Agent:
         mask = torch.tensor(avail_action, device=device).bool()
         action = []
         utility = list()
-
-        utilities = list()
+        cos, taus = self.Q.calc_cos(1)
 
         for n in range(self.num_agent):
             obs = node_representation[n]
-            Q = self.Q(obs)
+            Q = self.Q(obs, cos, mini_batch = False)
             Q = Q.masked_fill(mask[n, :]==0, float('-inf'))
 
             greedy_u = torch.argmax(Q)

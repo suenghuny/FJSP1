@@ -21,9 +21,7 @@ if vessl_on == True:
 else:
     from torch.utils.tensorboard import SummaryWriter
 
-torch.manual_seed(81)
-random.seed(81)
-np.random.seed(81)
+
 
 
 map_name1 = cfg.map_name
@@ -52,6 +50,7 @@ spine crawler : 300.00.01.125`
 
 
 def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, initializer, output_dir):
+
     env.reset()
     done = False
     episode_reward = 0
@@ -60,9 +59,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
     epi_r = list()
     eval = False
     start = time.time()
-
     sum_learn = 0
-
     while not done:
 
         node_feature_machine, num_waiting_operations, edge_index_machine = env.get_heterogeneous_graph()
@@ -119,7 +116,9 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
     return episode_reward, epsilon, t, eval
 
 def main():
-
+    torch.manual_seed(81)
+    random.seed(81)
+    np.random.seed(81)
     env1 = RL_ENV()
     hidden_size_obs = cfg.hidden_size_obs       # GAT 해당(action 및 node representation의 hidden_size)
     hidden_size_comm = cfg.hidden_size_comm
@@ -143,7 +142,7 @@ def main():
     anneal_epsilon = (epsilon - min_epsilon) / anneal_steps
 
     if vessl_on == True:
-        output_dir = "output_dir_random beer/"
+        output_dir = "output/"
     else:
         output_dir = "../output_dir_random/"
 
@@ -194,15 +193,15 @@ def main():
         epi_r.append(episode_reward)
         #writer.add_scalar("episode_reward/train", episode_reward, e)
 
-        if e % 100 == 1:
-            if vessl_on == True:
-                vessl.log(step = e, payload = {'reward' : np.mean(epi_r)})
-                epi_r = []
-                r_df= pd.DataFrame(epi_r)
-                r_df.to_csv(output_dir+"reward.csv")
-            else:
-                r_df= pd.DataFrame(epi_r)
-                r_df.to_csv(output_dir+"reward.csv")
+
+        if vessl_on == True:
+            vessl.log(step = e, payload = {'reward' : np.mean(epi_r)})
+            epi_r = []
+            r_df= pd.DataFrame(epi_r)
+            r_df.to_csv(output_dir+"reward.csv")
+        else:
+            r_df= pd.DataFrame(epi_r)
+            r_df.to_csv(output_dir+"reward.csv")
         #
         # if eval == True:
         #     win_rate = evaluation(env1, agent1, 32)

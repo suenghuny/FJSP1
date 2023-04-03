@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 
 
-device =torch.device("cpu")#torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device =torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
 class GraphAttentionLayer(nn.Module):
     """
@@ -28,6 +28,7 @@ class GraphAttentionLayer(nn.Module):
         self.leakyrelu = nn.LeakyReLU(self.alpha)
         self.adj = torch.ones([n_node,n_node]).to(device).long()
         self.adj_batch = torch.ones([batch_size, n_node,n_node]).to(device).long()
+        self.dropout = nn.Dropout(p = 0.6)
 
         # print(time.time()-start)
         # adj_du = time.time()-start
@@ -71,6 +72,8 @@ class GraphAttentionLayer(nn.Module):
             #torch.where(adj > 0, e, zero_vec)                               # e(attention 계수) 중에 연결성이 없는 것은 0처리
                                                                                         # e.shape : (n_node, n_node)
             attention = F.softmax(attention, dim=1)                                     # attention : (n_node, n_node)
+            attention = self.dropout(attention)
+            ## F.droupout(attention, 0.7, training = False)
             h_prime =self.teleport_probability * torch.mm(attention, Wh) + (1-self.teleport_probability) * Wh
 
         else:
@@ -93,6 +96,7 @@ class GraphAttentionLayer(nn.Module):
             attention = torch.where(adj > 0, e, zero_vec)  # adj.shape: 1, num_enemy
 
             attention = F.softmax(attention, dim=2)
+            attention = self.dropout(attention)
             #attention_du = time.time()-start
             h_prime = self.teleport_probability * torch.bmm(attention, Wh) + (1-self.teleport_probability) * Wh
             #print(cal_du, adj_du, stack_du, attention_du)

@@ -12,6 +12,8 @@ from cfg import get_cfg
 cfg = get_cfg()
 from scheduling_problems.problem_generator import sp1
 vessl_on = cfg.vessl
+import torch
+import random
 if vessl_on == True:
     import vessl
     vessl.init()
@@ -46,7 +48,9 @@ spine crawler : 300.00.01.125`
 """
 
 
-
+torch.manual_seed(81)
+random.seed(81)
+np.random.seed(81)
 
 def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, initializer, output_dir):
     env.reset()
@@ -75,7 +79,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
         avail_action = env.get_avail_actions()
         action,q = agent.sample_action(node_representation, avail_action, epsilon)
 
-        reward, done, info = env.step(action)
+        reward, done, info = env.step(action,q)
         reward /=200
 
         episode_reward += reward

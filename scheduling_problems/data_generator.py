@@ -13,7 +13,7 @@ import numpy as np
 # num_jobs = 100
 
 # # #시나리오 3
-temp = [4, 4, 7, 3, 5, 4, 6,5]
+temp = [4, 4, 7, 3, 5, 4, 6,5, 3, 8, 4]
 num_job_type = len(temp)
 #num_jobs = 120
 
@@ -22,20 +22,20 @@ num_job_type = len(temp)
 # num_jobs = 10
 
 
-
-def process_time_generator(lower, upper):
-    return np.random.uniform(lower, upper)
-
-
-def random_alter_machine_generator(num_machines):
-    machine_list = [i for i in range(num_machines)]
-    np.random.shuffle(machine_list)
-    num = np.random.randint(int((num_machines-2)/2), int((num_machines+4)/2))
-    result = machine_list[:num]
-    return result
-
-da = [0, 2, 4, 6, 7, 9, 11,10, 13, 15, 17, 18, 19]
-wb = [i for i in range(19) if i not in da]
+#
+# def process_time_generator(lower, upper):
+#     return np.random.uniform(lower, upper)
+#
+#
+# def random_alter_machine_generator(num_machines):
+#     machine_list = [i for i in range(num_machines)]
+#     np.random.shuffle(machine_list)
+#     num = np.random.randint(int((num_machines-2)/2), int((num_machines+4)/2))
+#     result = machine_list[:num]
+#     return result
+#
+# da = [0, 2, 4, 6, 7, 9, 11,10, 13, 15, 17, 18, 19]
+# wb = [i for i in range(19) if i not in da]
 def setup_generator():
     setup_list = np.zeros([len(ops_name_list), len(ops_name_list)])
     for i in range(len(ops_name_list)):
@@ -72,15 +72,15 @@ for j in range(num_job_type):
         if np.random.choice([0,1], p = [0.9,0.1])== 0:
             if k % 2 == 0:
                 process_j_operation_list.append(np.random.choice([80, 90, 100, 60, 50]))
-                machine_j_operation_list.append([0,1,2])
+                machine_j_operation_list.append([0,1,2,3,4])
                 job_j_ops_type_list.append(0)
             else:
                 process_j_operation_list.append(np.random.choice([180, 220, 250, 290, 270, 150]))
-                machine_j_operation_list.append([3,4,5,6, 7,8])
+                machine_j_operation_list.append([5,6, 7,8,9,10,11,12,13,14,15])
                 job_j_ops_type_list.append(1)
         else:
             process_j_operation_list.append(np.random.choice([40, 50, 60, 30]))
-            machine_j_operation_list.append([0, 1, 2])
+            machine_j_operation_list.append([0, 1, 2, 3, 4])
             job_j_ops_type_list.append(0)
 
     process_time_list.append(process_j_operation_list)
