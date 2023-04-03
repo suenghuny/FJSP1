@@ -269,9 +269,7 @@ class Agent:
                  GNN,
                  teleport_probability,
                  gtn_beta):
-        torch.manual_seed(81)
-        random.seed(81)
-        np.random.seed(81)
+
         self.num_agent = num_agent
         self.feature_size_job = feature_size_job
         self.feature_size_machine = feature_size_machine
@@ -576,29 +574,33 @@ class Agent:
         action_feature 차원      : action_size X n_action_feature
         avail_action 차원        : n_agents X action_size
         """
-
         mask = torch.tensor(avail_action, device=device).bool()
         action = []
         utility = list()
+
+        utilities = list()
 
         for n in range(self.num_agent):
             obs = node_representation[n]
             Q = self.Q(obs)
             Q = Q.masked_fill(mask[n, :]==0, float('-inf'))
-            greedy_u = torch.argmax(Q)
-            mask_n = np.array(avail_action[n], dtype=np.float64)
 
+            greedy_u = torch.argmax(Q)
+
+
+            # print(Q)
+
+
+
+            mask_n = np.array(avail_action[n], dtype=np.float64)
             if np.random.uniform(0, 1) >= epsilon:
                 u = greedy_u
                 utility.append(Q[0][u].detach().item())
                 action.append(u)
             else:
                 u = np.random.choice(self.action_space, p=mask_n / np.sum(mask_n))
-                #print()
                 utility.append(Q[0][u].detach().item())
-
                 action.append(u)
-        #print("sss", action)
         return action, utility
 
 

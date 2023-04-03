@@ -9,6 +9,9 @@ import os
 import time
 from Environment_Multi.FJSP_multi import RL_ENV
 from cfg import get_cfg
+import torch
+import random
+
 cfg = get_cfg()
 
 vessl_on = cfg.vessl
@@ -18,9 +21,9 @@ if vessl_on == True:
 else:
     from torch.utils.tensorboard import SummaryWriter
 
-
-
-
+torch.manual_seed(81)
+random.seed(81)
+np.random.seed(81)
 
 
 map_name1 = cfg.map_name

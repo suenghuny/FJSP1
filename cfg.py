@@ -9,20 +9,16 @@ def get_cfg():
     parser.add_argument("--GNN", type=str, default='GAT', help="map name")
     parser.add_argument("--hidden_size_obs", type=int, default=96, help="GTN 해당")
     parser.add_argument("--hidden_size_comm", type=int, default=128, help="")
-
     parser.add_argument("--n_representation_job", type=int, default=64, help="GTN 해당")
     parser.add_argument("--n_representation_machine", type=int, default=84, help="")
-
     parser.add_argument("--hidden_size_Q", type=int, default=196, help="GTN 해당")
-
     parser.add_argument("--hidden_size_meta_path", type=int, default=42, help="GTN 해당")
-
     parser.add_argument("--buffer_size", type=int, default=50000, help="")
     parser.add_argument("--batch_size", type=int, default=32, help="")
     parser.add_argument("--teleport_probability", type=float, default=0.9, help="teleport_probability")
     parser.add_argument("--gtn_beta", type=float, default=0.1, help="teleport_probability")
-    parser.add_argument("--gamma", type=float, default=0.9, help="discount ratio")
-    parser.add_argument("--lr", type=float, default=5e-5, help="learning rate")
+    parser.add_argument("--gamma", type=float, default=0.7, help="discount ratio")
+    parser.add_argument("--lr", type=float, default=3e-5, help="learning rate")
     parser.add_argument("--n_multi_head", type=int, default=1, help="number of multi head")
     parser.add_argument("--dropout", type=float, default=0.6, help="dropout")
     parser.add_argument("--num_episode", type=int, default=1000000, help="number of episode")

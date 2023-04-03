@@ -8,7 +8,6 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 from scheduling_problems.problem_generator import workcenter, num_machines, num_job_type, soe, process_time_list, ops_name_array, ops_name_list, alternative_machine_list, setup_list, problems, ops_type_list, workcenter_name
 import numpy as np
 
-np.random.seed(42)
 
 class Operation():
     global num_machines, process_time_list, alternative_machine_list
@@ -226,10 +225,10 @@ class Process:
         if test == False:
             selection = np.random.randint(0, len(problems))
             scheduling_problem = problems[selection]
-            self.scheduling_problem = [int(p) + np.random.choice([-3,-2, -1, 0, 1, 2, 3]) for p in scheduling_problem]
+            self.scheduling_problem = [int(p) + np.random.choice([-2, -1, 0, 1, 2]) for p in scheduling_problem]
             #self.scheduling_problem = [int(p) for p in scheduling_problem]
 
-
+        print(self.scheduling_problem)
         for k in range(len(self.scheduling_problem)):
             pro = self.scheduling_problem[k]
             for j in range(pro):
@@ -272,6 +271,7 @@ class Process:
                 yield self.env.timeout(0)
                 count = 0
                 self.sorting_res_store.sort(key=lambda machine: machine.q_value, reverse = True)
+
                 for m in self.sorting_res_store:
                     count += 1
                     if m in self.machine_store.items:
@@ -283,37 +283,10 @@ class Process:
                                 job = yield self.waiting_job_store.get(lambda job: job.operations[0].idx == ops)
                                 machine = yield self.machine_store.get(lambda res: res == m)
                                 self.env.process(self._do_working(job, machine))
-                                #print(machine.name, ops_name_list.index(job.operations[0].idx))
                                 if machine.name not in job.operations[0].alternative_machine_list:
                                     print("?????")
-                                #print((machine.name, self.action[m.name]))
                             else:
-                                self.action[m.name] = self.action_space[-1]       # 원래는 이 문장만 있었음
-                                #print("안되")
-                                # for job in self.waiting_job_store.items:
-                                #     temp_setup_list = list()
-                                #     if m in self.machine_store.items and m.name in job.operations[0].alternative_machine_list:
-                                #         temp_setup_list.append(setup_get(machine, job.operations[0]) + job.operations[0].process_time)
-                                #     else:
-                                #         temp_setup_list.append(float('inf'))
-                                #     if len(temp_setup_list) > 0:
-                                #         job.shortest_setup_time = min(temp_setup_list)
-                                # self.waiting_job_store.items.sort(key=lambda job: job.shortest_setup_time)
-                                # if len(self.waiting_job_store.items) > 0 and len(
-                                #         self.machine_store.items) > 0 and np.min(
-                                #         [job.shortest_setup_time for job in self.waiting_job_store.items]) != float('inf'):
-                                #
-                                #     ops_idx = self.waiting_job_store.items[0].operations[0].idx
-                                #     #print("전", self.action)
-                                #     self.action[m.name] = ops_name_list.index(ops_idx)
-                                #     #print("후", self.action)
-                                #     machine = yield self.machine_store.get(lambda res: res == m)
-                                #     job = yield self.waiting_job_store.get()
-                                #     if machine.name not in job.operations[0].alternative_machine_list:
-                                #         print("?????")
-                                #     self.env.process(self._do_working(job, machine))
-                                # else:
-                                #     self.action[m.name] = self.action_space[-2]
+                                self.action[m.name] = self.action_space[-1]
                         else:
                             pass
                     else:
@@ -502,10 +475,8 @@ def setup_get(machine, ops):
 
 
 class RL_ENV:
-    def __init__(self, mode = 'agent', seed = np.random.randint(1, 10000000)):
-        self.seed = seed
+    def __init__(self, mode = 'agent'):
         self.mode = mode
-        np.random.seed(self.seed)
         self.env = simpy.Environment()
         self.reward = 0
         self.proc = Process(self.env, mode = mode, RL_ENV = self)
@@ -529,8 +500,6 @@ class RL_ENV:
             for j in range(self.n_agents):
                 self.get_edge_index_m_to_m[0].append(i)
                 self.get_edge_index_m_to_m[1].append(j)
-
-
 
 
     def get_env_info(self):
@@ -868,9 +837,9 @@ class RL_ENV:
     def step(self, actions, q_values = False):
         self.proc.action = actions
 
-        if type(q_values) == 'list':
-            for m in self.proc.dummy_res_store:
-                m.q_value = q_values[m.name]
+
+        for m in self.proc.dummy_res_store:
+            m.q_value = q_values[m.name]
         done = False
         while self.proc.change == False:
             try:
