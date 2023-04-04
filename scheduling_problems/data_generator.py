@@ -13,7 +13,7 @@ import numpy as np
 # num_jobs = 100
 
 # # #시나리오 3
-temp = [4, 4, 7, 3, 5, 4, 6,5, 3, 8, 4]
+temp = [2, 3, 7, 3, 5, 4, 6,8]
 num_job_type = len(temp)
 #num_jobs = 120
 
@@ -71,16 +71,16 @@ for j in range(num_job_type):
         ops_name_list.append("{}_{}".format(j, k))
         if np.random.choice([0,1], p = [0.9,0.1])== 0:
             if k % 2 == 0:
-                process_j_operation_list.append(np.random.choice([80, 90, 100, 60, 50]))
-                machine_j_operation_list.append([0,1,2,3,4])
+                process_j_operation_list.append(np.random.choice([20,15, 13, 25, 30, 40, 60, 50]))
+                machine_j_operation_list.append([0,1,2,3])
                 job_j_ops_type_list.append(0)
             else:
                 process_j_operation_list.append(np.random.choice([180, 220, 250, 290, 270, 150]))
-                machine_j_operation_list.append([5,6, 7,8,9,10,11,12,13,14,15])
+                machine_j_operation_list.append([4, 5,6, 7,8,9,10,11,12])
                 job_j_ops_type_list.append(1)
         else:
-            process_j_operation_list.append(np.random.choice([40, 50, 60, 30]))
-            machine_j_operation_list.append([0, 1, 2, 3, 4])
+            process_j_operation_list.append(np.random.choice([30, 40, 60, 30]))
+            machine_j_operation_list.append([0, 1, 2, 3])
             job_j_ops_type_list.append(0)
 
     process_time_list.append(process_j_operation_list)

@@ -39,13 +39,13 @@ class IQN(nn.Module):
         self.ff_1 = nn.Linear(layer_size, layer_size)
         self.ff_1_bn = nn.BatchNorm1d(layer_size)
 
-        self.ff_2 = nn.Linear(layer_size, 128)
-        self.ff_2_bn = nn.BatchNorm1d(128)
+        self.ff_2 = nn.Linear(layer_size, 196)
+        self.ff_2_bn = nn.BatchNorm1d(196)
 
-        self.ff_3 = nn.Linear(128, 128)
-        self.ff_3_bn = nn.BatchNorm1d(128)
+        self.ff_3 = nn.Linear(196, 196)
+        self.ff_3_bn = nn.BatchNorm1d(196)
 
-        self.ff_4 = nn.Linear(128, 128)
+        self.ff_4 = nn.Linear(196, 128)
         self.ff_4_bn = nn.BatchNorm1d(128)
 
         self.ff_5 = nn.Linear(128, 64)
