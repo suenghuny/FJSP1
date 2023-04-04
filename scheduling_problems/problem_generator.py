@@ -19,7 +19,7 @@ ops_type_list = pd.read_csv('scheduling_problems/dataset3_ops_type.csv').values.
 alternative_machine_list = pd.read_csv('scheduling_problems/dataset3_alternative_machine.csv').values.tolist()
 setup_list = pd.read_csv('scheduling_problems/dataset3_setup_time.csv').values.tolist()
 maxlen = len(process_time_list[0])
-
+###
 for k in range(len(process_time_list)):
     for t in range(maxlen):
         if math.isnan(process_time_list[k][-1]):
