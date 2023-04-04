@@ -13,7 +13,7 @@ import numpy as np
 # num_jobs = 100
 
 # # #시나리오 3
-temp = [2, 3, 7, 3, 5, 4, 6,8]
+temp = [2, 3, 7]
 num_job_type = len(temp)
 #num_jobs = 120
 
@@ -72,15 +72,15 @@ for j in range(num_job_type):
         if np.random.choice([0,1], p = [0.9,0.1])== 0:
             if k % 2 == 0:
                 process_j_operation_list.append(np.random.choice([20,15, 13, 25, 30, 40, 60, 50]))
-                machine_j_operation_list.append([0,1,2,3])
+                machine_j_operation_list.append([0,1])
                 job_j_ops_type_list.append(0)
             else:
                 process_j_operation_list.append(np.random.choice([180, 220, 250, 290, 270, 150]))
-                machine_j_operation_list.append([4, 5,6, 7,8,9,10,11,12])
+                machine_j_operation_list.append([2, 3,4, 5])
                 job_j_ops_type_list.append(1)
         else:
             process_j_operation_list.append(np.random.choice([30, 40, 60, 30]))
-            machine_j_operation_list.append([0, 1, 2, 3])
+            machine_j_operation_list.append([0, 1])
             job_j_ops_type_list.append(0)
 
     process_time_list.append(process_j_operation_list)
@@ -95,8 +95,8 @@ if __name__ == "__main__":
     df_setup = pd.DataFrame(setup_list)
     df_machine = pd.DataFrame(alternative_machine_list)
     df_ops_type = pd.DataFrame(ops_type_list)
-    df_name.to_csv('dataset3_ops_name.csv', index=False)
-    df_process.to_csv('dataset3_process_time.csv', index=False)
-    df_setup.to_csv('dataset3_setup_time.csv', index=False)
-    df_machine.to_csv('dataset3_alternative_machine.csv', index=False)
-    df_ops_type.to_csv('dataset3_ops_type.csv', index=False)
+    df_name.to_csv('dataset2_ops_name.csv', index=False)
+    df_process.to_csv('dataset2_process_time.csv', index=False)
+    df_setup.to_csv('dataset2_setup_time.csv', index=False)
+    df_machine.to_csv('dataset2_alternative_machine.csv', index=False)
+    df_ops_type.to_csv('dataset2_ops_type.csv', index=False)

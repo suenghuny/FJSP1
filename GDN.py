@@ -19,13 +19,12 @@ from scipy.sparse import csr_matrix
 
 
 class IQN(nn.Module):
-    def __init__(self, state_size, action_size, batch_size, layer_size=196, N=8):
+    def __init__(self, state_size, action_size, batch_size, layer_size=108, N=8):
         super(IQN, self).__init__()
         self.input_shape = state_size
         self.batch_size = batch_size
         # print(state_size)
         self.action_size = action_size
-        print(action_size)
         self.K = 32
         self.N = N
         self.n_cos = 64
@@ -39,16 +38,16 @@ class IQN(nn.Module):
         self.ff_1 = nn.Linear(layer_size, layer_size)
         self.ff_1_bn = nn.BatchNorm1d(layer_size)
 
-        self.ff_2 = nn.Linear(layer_size, 196)
-        self.ff_2_bn = nn.BatchNorm1d(196)
+        self.ff_2 = nn.Linear(layer_size, 84)
+        self.ff_2_bn = nn.BatchNorm1d(84)
 
-        self.ff_3 = nn.Linear(196, 196)
-        self.ff_3_bn = nn.BatchNorm1d(196)
+        self.ff_3 = nn.Linear(84, 84)
+        self.ff_3_bn = nn.BatchNorm1d(84)
 
-        self.ff_4 = nn.Linear(196, 128)
-        self.ff_4_bn = nn.BatchNorm1d(128)
+        self.ff_4 = nn.Linear(84, 84)
+        self.ff_4_bn = nn.BatchNorm1d(84)
 
-        self.ff_5 = nn.Linear(128, 64)
+        self.ff_5 = nn.Linear(84, 64)
         self.ff_5_bn = nn.BatchNorm1d(64)
 
         self.ff_6 = nn.Linear(64, 64)
@@ -184,9 +183,9 @@ class NodeEmbedding(nn.Module):
             self.fcn_3bn = nn.BatchNorm1d(n_agent)
 
         else:
-            self.fcn_1bn = nn.BatchNorm1d(hidden_size + 10)
-            self.fcn_2bn = nn.BatchNorm1d(hidden_size + 10)
-            self.fcn_3bn = nn.BatchNorm1d(hidden_size + 10)
+            self.fcn_1bn = nn.BatchNorm1d(n_agent)
+            self.fcn_2bn = nn.BatchNorm1d(n_agent)
+            self.fcn_3bn = nn.BatchNorm1d(n_agent)
         self.fcn_1 = nn.Linear(feature_size, hidden_size+10)
         self.fcn_2 = nn.Linear(hidden_size+10, hidden_size+10)
 
@@ -201,15 +200,16 @@ class NodeEmbedding(nn.Module):
 
     def forward(self, node_feature, machine = False):
         if machine == False:
-            if node_feature.dim() == 1:
+
+            if node_feature.dim() == 2:
                 node_feature = node_feature.unsqueeze(0)
+                #print(node_feature.shape)
 
         else:
             if node_feature.dim() == 2:
                 node_feature = node_feature.unsqueeze(0)
-                #print("후", node_feature.shape)
-            #
-            #     print(node_feature.shape)
+
+        #print(node_feature.shape, machine)
 
         x = F.relu(self.fcn_1bn(self.fcn_1(node_feature)))
         x = F.relu(self.fcn_2bn(self.fcn_2(x)))
@@ -416,8 +416,8 @@ class Agent:
         self.GNN = GNN
         if self.GNN == 'GAT':
 
-            self.node_representation_job_obs = NodeEmbedding(feature_size=feature_size_job, hidden_size=hidden_size_obs,
-                                                               n_representation_obs=n_representation_job).to(device)  # 수정사항
+            self.node_representation_job_obs = NodeEmbedding(feature_size=feature_size_job+2, hidden_size=hidden_size_obs,
+                                                               n_representation_obs=n_representation_job, n_agent = self.num_agent).to(device)  # 수정사항
 
 
             self.node_representation = NodeEmbedding(feature_size=feature_size_machine, hidden_size=hidden_size_obs,
@@ -554,40 +554,48 @@ class Agent:
         if self.GNN == 'GAT':
             if mini_batch == False:
                 with torch.no_grad():
+
+                    workcenter_encodes = torch.tensor(node_feature_machine, dtype=torch.float).to(device)[:, -2:]
+
                     node_feature_machine = torch.tensor(node_feature_machine,
                                                         dtype=torch.float,
                                                         device=device)
-
                     num_waiting_operations = torch.tensor(num_waiting_operations,
                                                         dtype=torch.float,
                                                         device=device)
 
+                    num_waiting_operations = torch.stack([torch.cat([num_waiting_operations, torch.tensor(workcenter_encodes[i])]) for i in range(self.num_agent)])
+
                     node_embedding_num_waiting_operations = self.node_representation_job_obs(num_waiting_operations)
-                    len_num_waiting_operations = node_embedding_num_waiting_operations.shape[1]
 
-                    node_embedding_num_waiting_operations = node_embedding_num_waiting_operations.expand([n_node_features_machine, len_num_waiting_operations])
+                    #len_num_waiting_operations = node_embedding_num_waiting_operations.shape[1]
 
-
-
-
-                    #print("전", node_feature_machine.shape)
-#                    obs_n = obs.unsqueeze(1).expand([self.batch_size, self.action_size, self.n_representation_comm])
-
+                    #node_embedding_num_waiting_operations = node_embedding_num_waiting_operations.expand([n_node_features_machine, len_num_waiting_operations])
                     node_embedding_machine_obs = self.node_representation(node_feature_machine, machine = True)
                     edge_index_machine = torch.tensor(edge_index_machine, dtype=torch.long, device=device)
                     node_representation = self.func_machine_comm(node_embedding_machine_obs, edge_index_machine, n_node_features_machine, mini_batch = mini_batch)
                     #print(node_embedding_num_waiting_operations.shape, node_representation.shape)
-                    node_representation = torch.cat([node_embedding_num_waiting_operations, node_representation], dim = 1)
+
+                    node_representation = torch.cat([node_embedding_num_waiting_operations.squeeze(0), node_representation], dim = 1)
             else:
+                workcenter_encodes = torch.tensor(node_feature_machine, dtype=torch.float).to(device)[:, :, -2:]
+
                 #node_feature_job = torch.tensor(node_feature_job, dtype=torch.float, device=device)
                 node_feature_machine = torch.tensor(node_feature_machine, dtype=torch.float, device=device)
                 num_waiting_operations = torch.tensor(num_waiting_operations,
                                                       dtype=torch.float,
                                                       device=device)
+                #print(num_waiting_operations.shape)
+                #print(node_embedding_num_waiting_operations.shape)
+                num_waiting_operations = num_waiting_operations.unsqueeze(1).expand([self.batch_size, self.num_agent, num_waiting_operations.shape[1]])
+                #print(num_waiting_operations.shape, workcenter_encodes.shape)
+                num_waiting_operations = torch.cat([num_waiting_operations, workcenter_encodes], dim = 2)
+
+                #print(num_waiting_operations.shape)
 
                 node_embedding_num_waiting_operations = self.node_representation_job_obs(num_waiting_operations)
                 len_num_waiting_operations = node_embedding_num_waiting_operations.shape[1]
-                node_embedding_num_waiting_operations = node_embedding_num_waiting_operations.unsqueeze(1).expand([self.batch_size, n_node_features_machine, len_num_waiting_operations])
+
 
  #               print("후", node_feature_machine.shape)
                 node_embedding_machine_obs = self.node_representation(node_feature_machine)

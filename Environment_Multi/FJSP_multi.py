@@ -776,7 +776,7 @@ class RL_ENV:
                                                              second_moment_setup,
                                                              second_moment_process,
                                                                  setup_remain_time,
-                                                                 process_remain_time]), setup, workcenter_encodes[machine.workcenter], self.action_history[i], status_encoding[k]])
+                                                                 process_remain_time]), setup, self.action_history[i], status_encoding[k], workcenter_encodes[machine.workcenter]])
                 else:
                     node_feature = np.concatenate([np.array([0, 0, 0,
                                                              first_moment_idle,
@@ -788,7 +788,7 @@ class RL_ENV:
                                                              second_moment_process,
                                                              setup_remain_time,
                                                              process_remain_time]), setup,
-                                                   workcenter_encodes[machine.workcenter], np.array(self.action_history[i])/num_total_action, status_encoding[k]])
+                                                   np.array(self.action_history[i])/num_total_action, status_encoding[k], workcenter_encodes[machine.workcenter]])
 
             else:
                 node_feature = np.concatenate([np.array([machine.idle_history/self.env.now,
@@ -802,7 +802,7 @@ class RL_ENV:
                                                          second_moment_setup,
                                                          second_moment_process,
                                                              setup_remain_time,
-                                                             process_remain_time]), setup, workcenter_encodes[machine.workcenter], np.array(self.action_history[i])/total_num_ops, status_encoding[k]])
+                                                             process_remain_time]), setup, np.array(self.action_history[i])/total_num_ops, status_encoding[k], workcenter_encodes[machine.workcenter]])
 
             node_features.append(node_feature)
 
