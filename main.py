@@ -142,7 +142,7 @@ def main():
     anneal_epsilon = (epsilon - min_epsilon) / anneal_steps
 
     if vessl_on == True:
-        output_dir = "../output/"
+        output_dir = "/output/"
     else:
         output_dir = "../output_dir_random/"
 
