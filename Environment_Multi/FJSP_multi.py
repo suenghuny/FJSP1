@@ -462,12 +462,12 @@ def setup_get(machine, ops):
                 #print(int(machine_setup_jobtype) == int(ops.job_type))
                 setup = 0
             elif (int(machine_setup_jobtype) == int(ops.job_type)) and (machine_setup_type != ops_setup_type):
-                setup = 120
+                setup = 30
             elif (int(machine_setup_jobtype) != int(ops.job_type)) and (machine_setup_type == ops_setup_type):
                 setup = 120
 
             else:
-                setup = 60
+                setup = 120
     return setup
 
 
@@ -504,7 +504,7 @@ class RL_ENV:
         num_agents = num_machines
         env_info = {"n_agents" : num_machines,
                     "job_feature_shape": sum(ops_length_list),  # + self.n_agents,
-                    "machine_feature_shape" : 8 + num_jobs + max_ops_length+ len(workcenter)+3+len(ops_name_list) + 1+3, # + self.n_agents,
+                    "machine_feature_shape" : 9 + num_jobs + max_ops_length+ len(workcenter)+3+len(ops_name_list) + 1+3, # + self.n_agents,
                     "n_actions": len(ops_name_list) + 1
                     }
         print(env_info)
@@ -531,6 +531,7 @@ class RL_ENV:
                 result = False
         else:
             if ops == machine.current_working_job.operations[0].idx:
+
                 result = True
             else:
                 result = False
@@ -592,7 +593,6 @@ class RL_ENV:
             for j in range(len(self.proc.waiting_job_store.items)):
                 job = self.proc.waiting_job_store.items[j]
                 idx = machine.setup
-
                 if idx[2] != '_':
                     setup = int(idx[0])
                 else:
@@ -668,6 +668,7 @@ class RL_ENV:
                     first_moment_idle = 0
 
                 setup_remain_time = (machine.current_setup_time_abs - self.env.now)/machine.current_setup_time
+
                 process_remain_time = 1
                 machine.last_recorded_setup = self.env.now
             if machine.status == 'working':
@@ -688,6 +689,7 @@ class RL_ENV:
 
                 setup_remain_time = 0
                 process_remain_time = (machine.current_process_time_abs - self.env.now)/machine.current_process_time
+
                 machine.last_recorded_process = self.env.now
             if machine.status == 'idle':
                 k = 2
@@ -720,14 +722,20 @@ class RL_ENV:
 
             if machine.last_recorded_first_idle != None:
                 second_moment_idle = first_moment_idle - machine.last_recorded_first_idle
+
             else:
                 second_moment_idle = 0
+
+
+
             machine.last_recorded_first_idle = first_moment_idle
 
             if machine.last_recorded_first_setup != None:
                 second_moment_setup = first_moment_setup - machine.last_recorded_first_setup
             else:
                 second_moment_setup = 0
+
+
             # if machine.name == 5:
             #     print("전", second_moment_setup, first_moment_setup, machine.last_recorded_first_setup)
             machine.last_recorded_first_setup = first_moment_setup
@@ -779,7 +787,7 @@ class RL_ENV:
                                                              second_moment_setup,
                                                              second_moment_process,
                                                                  setup_remain_time,
-                                                                 process_remain_time]), setup, self.action_history[i], status_encoding[k], workcenter_encodes[machine.workcenter]])
+                                                                 process_remain_time, 0]), setup, self.action_history[i], status_encoding[k], workcenter_encodes[machine.workcenter]])
                 else:
                     node_feature = np.concatenate([np.array([0, 0, 0,
                                                              first_moment_idle,
@@ -790,7 +798,7 @@ class RL_ENV:
                                                              second_moment_setup,
                                                              second_moment_process,
                                                              setup_remain_time,
-                                                             process_remain_time]), setup,
+                                                             process_remain_time, time_delta/30]), setup,
                                                    np.array(self.action_history[i])/num_total_action, status_encoding[k], workcenter_encodes[machine.workcenter]])
 
             else:
@@ -805,7 +813,7 @@ class RL_ENV:
                                                          second_moment_setup,
                                                          second_moment_process,
                                                              setup_remain_time,
-                                                             process_remain_time]), setup, np.array(self.action_history[i])/total_num_ops, status_encoding[k], workcenter_encodes[machine.workcenter]])
+                                                             process_remain_time, time_delta/30]), setup, np.array(self.action_history[i])/total_num_ops, status_encoding[k], workcenter_encodes[machine.workcenter]])
 
             node_features.append(node_feature)
 
