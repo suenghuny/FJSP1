@@ -167,7 +167,7 @@ def main():
     for e in range(num_episode):
         episode_reward, epsilon, t, eval = train(agent1, env1, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, initializer, output_dir)
         initializer = False
-        epi_r.append(env1.env.now)
+        epi_r.append(episode_reward)
         #writer.add_scalar("episode_reward/train", episode_reward, e)
 
         if e % 100 == 0:

@@ -66,9 +66,11 @@ class GraphAttentionLayer(nn.Module):
                                            (n_node_features, n_node_features)).to_dense().to(device)
 
             adj = adj.to(device).long()
-            zero_vec = -9e15 * torch.ones_like(e)
-            attention = torch.where(adj > 0, e, zero_vec)
+            #print(adj)
+            # zero_vec = -9e15 * torch.ones_like(e)
+            # attention = torch.where(adj > 0, e, zero_vec)
 
+            attention = adj * e
             #torch.where(adj > 0, e, zero_vec)                               # e(attention 계수) 중에 연결성이 없는 것은 0처리
                                                                                         # e.shape : (n_node, n_node)
             attention = F.softmax(attention, dim=1)                                     # attention : (n_node, n_node)
@@ -77,29 +79,22 @@ class GraphAttentionLayer(nn.Module):
             h_prime =self.teleport_probability * torch.mm(attention, Wh) + (1-self.teleport_probability) * Wh
 
         else:
-
-
-
             batch_size = len(edge_index)
-            adj = [torch.sparse_coo_tensor(edge_index[m],
-                                           torch.ones(torch.tensor(edge_index[m]).shape[1]).to(device),
-                                           (n_node_features, n_node_features)).to_dense().to(device) for m in range(batch_size)]
-
 
             W = self.W.expand([batch_size, self.in_features, self.out_features])
             Wh = torch.bmm(h, W)  # h.shape: (1, in_features), Wh.shape: (in_features, out_features)
+
             e = self._prepare_attentional_mechanism_input(Wh, mini_batch = mini_batch)  # e.shape: 1, num_enemy+1
 
-            zero_vec = -9e15 * torch.ones_like(e)
+            adj = edge_index
             adj = torch.stack(adj)
             adj = adj.to(device).long()
-            attention = torch.where(adj > 0, e, zero_vec)  # adj.shape: 1, num_enemy
 
+            attention = adj*e#torch.where(adj > 0, e, zero_vec)  # adj.shape: 1, num_enemy
             attention = F.softmax(attention, dim=2)
+
             attention = self.dropout(attention)
-            #attention_du = time.time()-start
             h_prime = self.teleport_probability * torch.bmm(attention, Wh) + (1-self.teleport_probability) * Wh
-            #print(cal_du, adj_du, stack_du, attention_du)
 
 
         if self.concat:
