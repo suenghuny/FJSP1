@@ -538,6 +538,7 @@ class Agent:
                     node_representation = torch.cat(
                         [node_embedding_num_waiting_operations.squeeze(0), node_representation], dim=1)
             else:
+
                 workcenter_encodes = torch.tensor(node_feature_machine, dtype=torch.float).to(device)[:, :, -2:]
 
                 node_feature_machine = torch.tensor(node_feature_machine, dtype=torch.float).to(device)

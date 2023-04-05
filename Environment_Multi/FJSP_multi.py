@@ -223,7 +223,7 @@ class Process:
         if test == False:
             selection = np.random.randint(0, len(problems))
             scheduling_problem = problems[selection]
-            self.scheduling_problem = [int(p) + random.choice([-3,-2, -1, 0, 1, 2,3]) for p in scheduling_problem]
+            self.scheduling_problem = [int(p) + random.choice([-2, -1, 0, 1, 2]) for p in scheduling_problem]
             #self.scheduling_problem = [int(p) for p in scheduling_problem]
 
         print(self.scheduling_problem)
@@ -615,8 +615,11 @@ class RL_ENV:
                     pass
                 else:
                     for j in range(self.n_agents):
-                        edge_index[0].append(i)
-                        edge_index[1].append(j)
+                        comm_machine = self.proc.dummy_res_store[j]
+                        if comm_machine.status == 'working':
+
+                            edge_index[0].append(i)
+                            edge_index[1].append(j)
         return edge_index
 
     def get_node_feature_job(self):
