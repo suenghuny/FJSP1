@@ -96,7 +96,7 @@ class Machine(simpy.Resource):
         for ops in flatten_all_ops_list:
             if self.name in ops.alternative_machine_list:
                 choices.append(ops.idx)
-        self.setup = np.random.choice(choices)
+        self.setup = random.choice(choices)
         self.waiting_job_store = waiting_job_store
         self.production_list = production_list
         self.machine_selection_indicator = 1
@@ -223,7 +223,7 @@ class Process:
         if test == False:
             selection = np.random.randint(0, len(problems))
             scheduling_problem = problems[selection]
-            self.scheduling_problem = [int(p) + random.choice([-2, -1, 0, 1, 2]) for p in scheduling_problem]
+            self.scheduling_problem = [int(p) + random.choice([-3,-2, -1, 0, 1, 2,3]) for p in scheduling_problem]
             #self.scheduling_problem = [int(p) for p in scheduling_problem]
 
         print(self.scheduling_problem)
