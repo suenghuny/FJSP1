@@ -7,7 +7,7 @@ def get_cfg():
     parser.add_argument("--vessl", type=bool, default=False, help="vessl AI 사용여부")
     parser.add_argument("--map_name", type=str, default='6h_vs_8z', help="map name")
     parser.add_argument("--GNN", type=str, default='GAT', help="map name")
-    parser.add_argument("--hidden_size_obs", type=int, default=32, help="GTN 해당")
+    parser.add_argument("--hidden_size_obs", type=int, default=45, help="GTN 해당")
     parser.add_argument("--hidden_size_comm", type=int, default=56, help="")
     parser.add_argument("--n_representation_job", type=int, default=15, help="GTN 해당")
     parser.add_argument("--n_representation_machine", type=int, default=32, help="")

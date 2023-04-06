@@ -12,6 +12,8 @@ from cfg import get_cfg
 cfg = get_cfg()
 from scheduling_problems.problem_generator import sp1
 vessl_on = cfg.vessl
+import torch
+import random
 if vessl_on == True:
     import vessl
     vessl.init()
@@ -57,12 +59,12 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
     epi_r = list()
     eval = False
     start = time.time()
-
+    agent.eval_check(eval=True)
     sum_learn = 0
 
     while not done:
 
-        node_feature_machine, num_waiting_operations, edge_index_machine = env.get_heterogeneous_graph()
+        node_feature_machine, num_waiting_operations, edge_index_machine,s = env.get_heterogeneous_graph()
         n_node_feature_machine = np.array(node_feature_machine).shape[0]
         if GNN == 'GAT':
             node_representation = agent.get_node_representation(
@@ -73,8 +75,9 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
                                                                 mini_batch=False)  # 차원 : n_agents X n_representation_comm
 
         avail_action = env.get_avail_actions()
-        action = agent.sample_action(node_representation, avail_action, epsilon)
-        reward, done, info = env.step(action)
+        action,q = agent.sample_action(node_representation, avail_action, epsilon)
+
+        reward, done, info = env.step(action,q)
         reward /=200
 
         episode_reward += reward
@@ -99,7 +102,10 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
     return episode_reward, epsilon, t, eval
 
 def main():
-    heuristic = 'spsu'
+    torch.manual_seed(81)
+    random.seed(81)
+    np.random.seed(81)
+    heuristic = 'ssu'
     env1 = RL_ENV(mode = heuristic)
     hidden_size_obs = cfg.hidden_size_obs       # GAT 해당(action 및 node representation의 hidden_size)
     hidden_size_comm = cfg.hidden_size_comm
@@ -165,7 +171,7 @@ def main():
         epi_r.append(episode_reward)
         #writer.add_scalar("episode_reward/train", episode_reward, e)
 
-        if e % 100 == 0:
+        if e % 1 == 0:
             if vessl_on == True:
                 vessl.log(step = e, payload = {'reward' : np.mean(epi_r)})
                 epi_r = []

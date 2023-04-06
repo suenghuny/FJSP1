@@ -48,9 +48,7 @@ spine crawler : 300.00.01.125`
 """
 
 
-torch.manual_seed(81)
-random.seed(81)
-np.random.seed(81)
+
 
 def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, initializer, output_dir):
     env.reset()
@@ -66,7 +64,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
 
     while not done:
 
-        node_feature_machine, num_waiting_operations, edge_index_machine = env.get_heterogeneous_graph()
+        node_feature_machine, num_waiting_operations, edge_index_machine,s = env.get_heterogeneous_graph()
         n_node_feature_machine = np.array(node_feature_machine).shape[0]
         if GNN == 'GAT':
             node_representation = agent.get_node_representation(
@@ -104,6 +102,9 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
     return episode_reward, epsilon, t, eval
 
 def main():
+    torch.manual_seed(81)
+    random.seed(81)
+    np.random.seed(81)
     heuristic = 'spsu'
     env1 = RL_ENV(mode = heuristic)
     hidden_size_obs = cfg.hidden_size_obs       # GAT 해당(action 및 node representation의 hidden_size)
@@ -118,7 +119,7 @@ def main():
     learning_rate = cfg.lr
     n_multi_head = cfg.n_multi_head
     dropout = cfg.dropout
-    num_episode = 300
+    num_episode = 2000
     train_start = cfg.train_start
     epsilon = 0
     min_epsilon = 0
@@ -167,7 +168,7 @@ def main():
     for e in range(num_episode):
         episode_reward, epsilon, t, eval = train(agent1, env1, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, initializer, output_dir)
         initializer = False
-        epi_r.append(episode_reward)
+        epi_r.append(env1.env.now)
         #writer.add_scalar("episode_reward/train", episode_reward, e)
 
         if e % 1 == 0:
