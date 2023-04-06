@@ -396,7 +396,7 @@ class Agent:
 
         self.GNN = GNN
         if self.GNN == 'GAT':
-            self.node_representation_job_obs = NodeEmbedding(feature_size=feature_size_job + 2,
+            self.node_representation_job_obs = NodeEmbedding(feature_size=feature_size_job,
                                                              hidden_size=hidden_size_obs,
                                                              n_representation_obs=n_representation_job,
                                                              n_agent=self.num_agent).to(device)  # 수정사항
@@ -531,18 +531,20 @@ class Agent:
             if mini_batch == False:
                 with torch.no_grad():
 
-                    workcenter_encodes = torch.tensor(node_feature_machine, dtype=torch.float).to(device)[:, -2:]
+                    #workcenter_encodes = torch.tensor(node_feature_machine, dtype=torch.float).to(device)[:, -2:]
 
                     node_feature_machine = torch.tensor(node_feature_machine,
                                                         dtype=torch.float,
                                                         device=device)
+
                     num_waiting_operations = torch.tensor(num_waiting_operations,
                                                           dtype=torch.float,
                                                           device=device)
 
-                    num_waiting_operations = torch.stack(
-                        [torch.cat([num_waiting_operations, torch.tensor(workcenter_encodes[i])]) for i in
-                         range(self.num_agent)])
+
+                    # num_waiting_operations = torch.stack(
+                    #     [torch.cat([num_waiting_operations, torch.tensor(workcenter_encodes[i])]) for i in
+                    #      range(self.num_agent)])
                     node_embedding_num_waiting_operations = self.node_representation_job_obs(num_waiting_operations)
                     node_embedding_machine_obs = self.node_representation(node_feature_machine, machine=True)
                     edge_index_machine = torch.tensor(edge_index_machine, dtype=torch.long, device=device)
@@ -552,17 +554,17 @@ class Agent:
                         [node_embedding_num_waiting_operations.squeeze(0), node_representation], dim=1)
             else:
 
-                workcenter_encodes = torch.tensor(node_feature_machine, dtype=torch.float).to(device)[:, :, -2:]
+                #workcenter_encodes = torch.tensor(node_feature_machine, dtype=torch.float).to(device)[:, :, -2:]
 
                 node_feature_machine = torch.tensor(node_feature_machine, dtype=torch.float).to(device)
                 num_waiting_operations = torch.tensor(num_waiting_operations,
                                                       dtype=torch.float,
                                                       ).to(device)
 
-                num_waiting_operations = num_waiting_operations.unsqueeze(1).expand(
-                    [self.batch_size, self.num_agent, num_waiting_operations.shape[1]])
+                # num_waiting_operations = num_waiting_operations.unsqueeze(1).expand(
+                #     [self.batch_size, self.num_agent, num_waiting_operations.shape[1]])
 
-                num_waiting_operations = torch.cat([num_waiting_operations, workcenter_encodes], dim=2)
+                #num_waiting_operations = torch.cat([num_waiting_operations, workcenter_encodes], dim=2)
 
                 # print(num_waiting_operations.shape)
 

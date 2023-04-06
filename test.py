@@ -167,7 +167,7 @@ def main():
                    GNN=GNN,
                    teleport_probability = teleport_probability,
                    gtn_beta = gtn_beta)
-    agent1.load_model("../output_dir_random/300000.pt")
+    agent1.load_model("../output_dir_random/200000.pt")
     agent1.eval_check(eval=True)
     t = 0
     epi_r = []

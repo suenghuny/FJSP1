@@ -83,7 +83,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
         episode_reward += reward
 
         t += 1
-        if t % 50000 <= 0.1:
+        if t % 10000 <= 0.1:
             if vessl_on == True:
                 agent.save_model(e, t, epsilon, output_dir+"{}.pt".format(t))
             else:
