@@ -18,7 +18,7 @@ from scipy.sparse import csr_matrix
 
 
 class IQN(nn.Module):
-    def __init__(self, state_size, action_size, batch_size, layer_size=108, N=8):
+    def __init__(self, state_size, action_size, batch_size, layer_size=84, N=8):
         super(IQN, self).__init__()
         self.input_shape = state_size
         self.batch_size = batch_size
@@ -43,16 +43,16 @@ class IQN(nn.Module):
         self.ff_3 = nn.Linear(84, 84)
         self.ff_3_bn = nn.BatchNorm1d(84)
 
-        self.ff_4 = nn.Linear(84, 84)
-        self.ff_4_bn = nn.BatchNorm1d(84)
+        self.ff_4 = nn.Linear(84, 64)
+        self.ff_4_bn = nn.BatchNorm1d(64)
 
-        self.ff_5 = nn.Linear(84, 64)
-        self.ff_5_bn = nn.BatchNorm1d(64)
+        self.ff_5 = nn.Linear(64, 32)
+        self.ff_5_bn = nn.BatchNorm1d(32)
 
-        self.ff_6 = nn.Linear(64, 64)
-        self.ff_6_bn = nn.BatchNorm1d(64)
+        self.ff_6 = nn.Linear(32, 32)
+        self.ff_6_bn = nn.BatchNorm1d(32)
 
-        self.ff_7 = nn.Linear(64, action_size)
+        self.ff_7 = nn.Linear(32, action_size)
 
         torch.nn.init.xavier_uniform_(self.ff_1.weight)
         torch.nn.init.xavier_uniform_(self.ff_2.weight)
@@ -221,7 +221,7 @@ class Replay_Buffer:
         self.buffer = deque()
 
         self.step_count_list = list()
-        for _ in range(8):
+        for _ in range(9):
             self.buffer.append(deque(maxlen=buffer_size))
         self.buffer_size = buffer_size
         self.num_agent = num_agent
@@ -234,7 +234,7 @@ class Replay_Buffer:
         self.buffer.pop()
 
     def memory(self, node_feature_machine, num_waiting_operations, edge_index_machine, action, reward, done,
-               avail_action):
+               avail_action, status):
         # self.buffer[0].append(node_feature_job)
         self.buffer[1].append(node_feature_machine)
         self.buffer[2].append(num_waiting_operations)
@@ -243,6 +243,7 @@ class Replay_Buffer:
         self.buffer[5].append(reward)
         self.buffer[6].append(done)
         self.buffer[7].append(avail_action)
+        self.buffer[8].append(status)
 
         if self.step_count < self.buffer_size - 1:
             self.step_count_list.append(self.step_count)
@@ -274,6 +275,11 @@ class Replay_Buffer:
                                               (self.num_agent, self.num_agent)).to_dense()
             if cat == 'avail_action_next':
                 yield datas[7][s + 1]
+
+            if cat == 'status':
+                yield datas[8][s]
+            if cat == 'status_next':
+                yield datas[8][s+1]
 
     def sample(self):
         step_count_list = self.step_count_list[:]
@@ -325,7 +331,14 @@ class Replay_Buffer:
         avail_action_next = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='avail_action_next')
         avail_actions_next = list(avail_action_next)
 
-        return node_features_machine, num_waiting_operations, edge_indices_machine, actions, rewards, dones, node_features_machine_next, num_waiting_operations_next, edge_indices_machine_next, avail_actions_next
+        status = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='status')
+        status = list(status)
+
+        status_next = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='status_next')
+        status_next = list(status_next)
+
+
+        return node_features_machine, num_waiting_operations, edge_indices_machine, actions, rewards, dones, node_features_machine_next, num_waiting_operations_next, edge_indices_machine_next, avail_actions_next, status, status_next
 
 
 class Agent:
@@ -682,7 +695,7 @@ class Agent:
 
         # import time
         # start = time.time()
-        node_features_machine, num_waiting_operations, edge_indices_machine, actions, rewards, dones, node_features_machine_next, num_waiting_operations_next, edge_indices_machine_next, avail_actions_next = self.buffer.sample()
+        node_features_machine, num_waiting_operations, edge_indices_machine, actions, rewards, dones, node_features_machine_next, num_waiting_operations_next, edge_indices_machine_next, avail_actions_next, status, status_next = self.buffer.sample()
         # print("시간측정 1", time.time()-start)
         # dummy = [0] * self.feature_size_job
 
@@ -721,6 +734,8 @@ class Agent:
             edge_indices_machine_next,
             n_node_features_machine,
             mini_batch=True)
+        status = torch.tensor(status, device=device, dtype=torch.float)
+        status_next = torch.tensor(status_next, device=device, dtype=torch.float)
         dones = torch.tensor(dones, device=device, dtype=torch.float)
         rewards = torch.tensor(rewards, device=device, dtype=torch.float)
         cos, taus = self.Q.calc_cos(self.batch_size)
@@ -741,9 +756,16 @@ class Agent:
 
         q_tot = torch.stack(q, dim=1)
         q_tot_tar = torch.stack(q_tar, dim=1)
+        #print(status/status.sum(dim = 1, keepdims = True))
+        q_tot = q_tot * status/status.sum(dim = 1, keepdims = True)
+        q_tot_tar = q_tot_tar* status_next/status_next.sum(dim = 1, keepdims = True)
+        #print(q_tot.shape, status_next.shape)
         q_tot = self.VDN(q_tot)
         q_tot_tar = self.VDN_target(q_tot_tar)
-        td_target = rewards * self.num_agent + self.gamma * (1 - dones) * q_tot_tar
+
+
+
+        td_target = rewards  + self.gamma * (1 - dones) * q_tot_tar
         loss1 = F.huber_loss(q_tot, td_target.detach())
         loss = loss1
 

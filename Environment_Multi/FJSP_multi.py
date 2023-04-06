@@ -504,7 +504,7 @@ class RL_ENV:
         num_agents = num_machines
         env_info = {"n_agents" : num_machines,
                     "job_feature_shape": sum(ops_length_list),  # + self.n_agents,
-                    "machine_feature_shape" : 9 + num_jobs + max_ops_length+ len(workcenter)+3+len(ops_name_list) + 1+3, # + self.n_agents,
+                    "machine_feature_shape" : 9 + num_jobs + max_ops_length+ len(workcenter)+3+len(ops_name_list) + 1+3-12, # + self.n_agents,
                     "n_actions": len(ops_name_list) + 1
                     }
         print(env_info)
@@ -535,11 +535,7 @@ class RL_ENV:
                 result = True
             else:
                 result = False
-            # if ops == machine.current_working_job.operations[0].idx:
-            #     result = True
-            # else:
-            # #     result = False
-            # result = False
+
 
         return result
 
@@ -553,25 +549,6 @@ class RL_ENV:
                 avail_actions.append(True)
             else:
                 avail_actions.append(False)
-
-        # for m in self.proc.dummy_res_store:
-        #     idx = self.proc.dummy_res_store.index(m)
-        #     avail_actions = avail_actions_by_agent[idx]
-        #
-        #     if m.status == 'idle':
-        #         if True not in avail_actions:
-        #             avail_actions.append(True)
-        #             avail_actions.append(False)
-        #         else:
-        #             avail_actions.append(False)
-        #             avail_actions.append(False)
-        #
-        #     if m.status == 'setup' or m.status == 'working':
-        #         avail_actions.append(False)
-        #         avail_actions.append(True)
-
-
-
 
         return avail_actions_by_agent
 
@@ -622,6 +599,9 @@ class RL_ENV:
                             edge_index[1].append(j)
         return edge_index
 
+
+
+
     def get_node_feature_job(self):
         job_features = list()
         for i in range(self.n_agents):
@@ -649,12 +629,16 @@ class RL_ENV:
         self.waiting_ops = [j.operations[0].idx for j in self.proc.waiting_job_store.items]
         num_waiting_operations = [self.waiting_ops.count(ops)/self.proc.production_list[flatten_all_ops_list[ops_name_list.index(ops)].job_type]
                                     if ops in self.waiting_ops else 0 for ops in ops_name_list]
-        num_total_action = sum(self.action_history[0])
+
+        status = [0]*self.n_agents
         for i in range(self.n_agents):
+            num_total_action = sum(self.action_history[i])
             machine = self.proc.dummy_res_store[i]
             # if i == 0:
             #     print(self.reward)
             if machine.status == 'setup':
+
+
                 k = 0
                 machine.setup_history += self.env.now - machine.last_recorded_setup
                 machine.last_setup_history = machine.setup_history
@@ -692,6 +676,7 @@ class RL_ENV:
 
                 machine.last_recorded_process = self.env.now
             if machine.status == 'idle':
+                status[i] = 1
                 k = 2
                 machine.idle_history += self.env.now - machine.last_recorded_idle
                 machine.last_idle_history = machine.idle_history
@@ -778,51 +763,58 @@ class RL_ENV:
             # if machine.name == 5:
             if self.env.now == 0:
                 if num_total_action== 0:
-                    node_feature = np.concatenate([np.array([0,0,0,
-                                                                 first_moment_idle,
-                                                                 first_moment_setup,
-                                                                 first_moment_process,
-
-                                                             second_moment_idle,
-                                                             second_moment_setup,
-                                                             second_moment_process,
-                                                                 setup_remain_time,
-                                                                 process_remain_time, 0]), setup, self.action_history[i], status_encoding[k], workcenter_encodes[machine.workcenter]])
+                    node_feature = np.concatenate([np.array([0, 0, 0]), setup, self.action_history[i],
+                                                   workcenter_encodes[machine.workcenter]])
+                    # node_feature = np.concatenate([np.array([0,0,0,
+                    #                                              first_moment_idle,
+                    #                                              first_moment_setup,
+                    #                                              first_moment_process,
+                    #
+                    #                                          second_moment_idle,
+                    #                                          second_moment_setup,
+                    #                                          second_moment_process,
+                    #                                              setup_remain_time,
+                    #                                              process_remain_time, 0]), setup, self.action_history[i], status_encoding[k], workcenter_encodes[machine.workcenter]])
                 else:
-                    node_feature = np.concatenate([np.array([0, 0, 0,
-                                                             first_moment_idle,
-                                                             first_moment_setup,
-                                                             first_moment_process,
-
-                                                             second_moment_idle,
-                                                             second_moment_setup,
-                                                             second_moment_process,
-                                                             setup_remain_time,
-                                                             process_remain_time, time_delta/30]), setup,
-                                                   np.array(self.action_history[i])/num_total_action, status_encoding[k], workcenter_encodes[machine.workcenter]])
+                    node_feature = np.concatenate([np.array([0, 0, 0]), setup,
+                                                   np.array(self.action_history[i]) / num_total_action,
+                                                   workcenter_encodes[machine.workcenter]])
+                    # node_feature = np.concatenate([np.array([0, 0, 0,
+                    #                                          first_moment_idle,
+                    #                                          first_moment_setup,
+                    #                                          first_moment_process,
+                    #
+                    #                                          second_moment_idle,
+                    #                                          second_moment_setup,
+                    #                                          second_moment_process,
+                    #                                          setup_remain_time,
+                    #                                          process_remain_time, time_delta/30]), setup,
+                    #                                np.array(self.action_history[i])/num_total_action, status_encoding[k], workcenter_encodes[machine.workcenter]])
 
             else:
                 node_feature = np.concatenate([np.array([machine.idle_history/self.env.now,
                                         machine.setup_history/self.env.now,
-                                                             machine.process_history/self.env.now,
-                                                             first_moment_idle,
-                                                             first_moment_setup,
-                                                             first_moment_process,
-
-                                                         second_moment_idle,
-                                                         second_moment_setup,
-                                                         second_moment_process,
-                                                             setup_remain_time,
-                                                             process_remain_time, time_delta/30]), setup, np.array(self.action_history[i])/total_num_ops, status_encoding[k], workcenter_encodes[machine.workcenter]])
+                                                             machine.process_history/self.env.now]), setup, np.array(self.action_history[i])/num_total_action, workcenter_encodes[machine.workcenter]])
+                # node_feature = np.concatenate([np.array([machine.idle_history/self.env.now,
+                #                         machine.setup_history/self.env.now,
+                #                                              machine.process_history/self.env.now,
+                #                                              first_moment_idle,
+                #                                              first_moment_setup,
+                #                                              first_moment_process,
+                #
+                #                                          second_moment_idle,
+                #                                          second_moment_setup,
+                #                                          second_moment_process,
+                #                                              setup_remain_time,
+                #                                              process_remain_time, time_delta/30]), setup, np.array(self.action_history[i])/num_total_action, status_encoding[k], workcenter_encodes[machine.workcenter]])
 
             node_features.append(node_feature)
-
         self.last_time_step = self.env.now
-        return node_features, num_waiting_operations
+        return node_features, num_waiting_operations, status
 
     def get_heterogeneous_graph(self):
-        node_features, num_waiting_operations = self.get_node_feature_machine()
-        return node_features, num_waiting_operations, self.get_edge_index_machine_machine()
+        node_features, num_waiting_operations, status = self.get_node_feature_machine()
+        return node_features, num_waiting_operations, self.get_edge_index_machine_machine(), status
 
     def reset(self):
 

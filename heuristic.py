@@ -170,7 +170,7 @@ def main():
         epi_r.append(episode_reward)
         #writer.add_scalar("episode_reward/train", episode_reward, e)
 
-        if e % 100 == 0:
+        if e % 1 == 0:
             if vessl_on == True:
                 vessl.log(step = e, payload = {'reward' : np.mean(epi_r)})
                 epi_r = []

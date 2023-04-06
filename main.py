@@ -62,7 +62,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
     sum_learn = 0
     while not done:
 
-        node_feature_machine, num_waiting_operations, edge_index_machine = env.get_heterogeneous_graph()
+        node_feature_machine, num_waiting_operations, edge_index_machine, status = env.get_heterogeneous_graph()
         n_node_feature_machine = np.array(node_feature_machine).shape[0]
         if GNN == 'GAT':
             agent.eval_check(eval = True)
@@ -79,7 +79,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
         reward /=200
 
 
-        agent.buffer.memory(node_feature_machine,num_waiting_operations, edge_index_machine, info, reward, done, avail_action)
+        agent.buffer.memory(node_feature_machine,num_waiting_operations, edge_index_machine, info, reward, done, avail_action, status)
         episode_reward += reward
 
         t += 1
