@@ -118,8 +118,8 @@ class Machine(simpy.Resource):
 
 
         self.last_recorded_idle_for_reward = 0
-        self.last_recorded_setup_for_reward = None
-        self.last_recorded_process_for_reward = None
+        self.last_recorded_setup_for_reward = 0
+        self.last_recorded_process_for_reward = 0
 
         self.setup_start = 0
         self.process_start = 0
@@ -155,12 +155,11 @@ class Machine(simpy.Resource):
         self.status = 'setup'
         self.current_working_job  = job
 
-        self.reward += -(self.env.now - self.last_recorded_idle)
-        self.reward_record += -(self.env.now - self.last_recorded_idle)
-
+        self.reward += -(self.env.now - self.last_recorded_idle_for_reward)
 
         self.last_recorded_setup = self.env.now
         self.last_recorded_setup_for_reward = self.env.now
+
 
         self.setup_start = self.env.now
         self.current_idle_time = None
@@ -173,18 +172,21 @@ class Machine(simpy.Resource):
 
     def setup_complete_process_start(self, job):
         self.status = 'working'
-        # if self.name == 1:
-        #     print("setup 더하기", self.env.now - self.last_recorded_set
         self.setup_history += self.env.now - self.last_recorded_setup
         self.last_setup_history = self.setup_history
 
-        # self.reward += -(self.env.now - self.last_recorded_setup)
-        # self.reward_record += -(self.env.now - self.last_recorded_setup)
+        self.reward += -(self.env.now - self.last_recorded_setup_for_reward)
+        #self.reward_record += -(self.env.now - self.last_recorded_setup)
+
         self.setup = job.operations[0].idx
         self.last_recorded_process = self.env.now
         self.last_recorded_process_for_reward = self.env.now
         self.last_recorded_setup = self.env.now
         self.last_recorded_setup_for_reward = self.env.now
+
+
+
+
         self.process_start = self.env.now
         self.current_setup_time = None
         self.current_setup_time_abs = None
@@ -192,18 +194,20 @@ class Machine(simpy.Resource):
         self.complete = False
 
 
-
-
     def process_complete_idle_start(self):
         self.status = 'idle'
 
-        self.reward += -(self.env.now - self.last_recorded_process)
-        self.reward_record += -(self.env.now - self.last_recorded_process)
+
+
+        self.reward += -(self.env.now - self.last_recorded_process_for_reward)
+        #self.reward_record += -(self.env.now - self.last_recorded_process_for_reward) # 여기 확인
+        self.last_recorded_idle = self.env.now
+        self.last_recorded_idle_for_reward = self.env.now
+
 
         self.process_history += self.env.now - self.last_recorded_process
         self.current_working_job = None
-        self.last_recorded_idle = self.env.now
-        self.last_recorded_idle_for_reward = self.env.now
+
         self.current_process_time = None
         self.current_process_time_abs = None
         self.process_complete_idle_start_check = True
@@ -650,19 +654,10 @@ class RL_ENV:
             machine = self.proc.dummy_res_store[i]
             waiting_ops = deepcopy(num_waiting_operations)
 
-            #print(len(num_waiting_operations), workcenter_encodes[machine.workcenter].shape)
             waiting_ops_list.append(np.concatenate([num_waiting_operations,workcenter_encodes[machine.workcenter]]))
             waiting_ops.append(num_waiting_operations)
-
-
-
             num_total_action = sum(self.action_history[i])
-
-            # if i == 0:
-            #     print(self.reward)
             if machine.status == 'setup':
-
-
                 k = 0
                 machine.setup_history += self.env.now - machine.last_recorded_setup
                 machine.last_setup_history = machine.setup_history
@@ -674,17 +669,13 @@ class RL_ENV:
                     first_moment_process = 0
                     first_moment_setup = 0
                     first_moment_idle = 0
-
                 setup_remain_time = (machine.current_setup_time_abs - self.env.now)/machine.current_setup_time
-
                 process_remain_time = 1
                 machine.last_recorded_setup = self.env.now
             if machine.status == 'working':
                 k = 1
                 machine.process_history += self.env.now - machine.last_recorded_process
-
                 machine.last_process_history = machine.process_history
-
                 if time_delta != 0:
                     first_moment_process = (self.env.now - machine.last_recorded_process)/time_delta
 
@@ -884,24 +875,22 @@ class RL_ENV:
 
             if machine.status == 'idle':
                 machine.reward += -(self.env.now - machine.last_recorded_idle_for_reward)
-                machine.reward_record += -(self.env.now - machine.last_recorded_idle_for_reward)
+                #machine.reward_record += -(self.env.now - machine.last_recorded_idle_for_reward)
                 machine.last_recorded_idle_for_reward = self.env.now
 
             elif machine.status == 'working':
-                pass
-                # machine.reward += -(self.env.now - machine.last_recorded_process_for_reward)
-                # machine.reward_record += -(self.env.now - machine.last_recorded_process_for_reward)
-                #
-                # machine.last_recorded_process_for_reward = self.env.now
+                machine.reward += -(self.env.now - machine.last_recorded_process_for_reward)
+                #machine.reward_record += -(self.env.now - machine.last_recorded_process_for_reward)
+                machine.last_recorded_process_for_reward = self.env.now
+                #pass
 
             elif machine.status == 'setup':
                 machine.reward += -(self.env.now - machine.last_recorded_setup_for_reward)
-                machine.reward_record += -(self.env.now - machine.last_recorded_setup_for_reward)
+                #machine.reward_record += -(self.env.now - machine.last_recorded_setup_for_reward)
                 machine.last_recorded_setup_for_reward = self.env.now
-
-
-
             reward += machine.reward
+
+
             machine.reward = 0
 
         for m in range(len(changed_actions)):

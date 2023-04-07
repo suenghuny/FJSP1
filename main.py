@@ -81,6 +81,8 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
 
         agent.buffer.memory(node_feature_machine,num_waiting_operations, edge_index_machine, info, reward, done, avail_action, status)
         episode_reward += reward
+        # if env.env.now>0:
+        #     print(env.env.now/episode_reward)
 
         t += 1
         if t % 10000 <= 0.1:
@@ -189,6 +191,7 @@ def main():
     win_rates = []
     for e in range(num_episode):
         episode_reward, epsilon, t, eval = train(agent1, env1, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, initializer, output_dir)
+
         initializer = False
         epi_r.append(episode_reward)
         #writer.add_scalar("episode_reward/train", episode_reward, e)
