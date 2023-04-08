@@ -609,11 +609,13 @@ class RL_ENV:
                     pass
                 else:
                     for j in range(self.n_agents):
-                        comm_machine = self.proc.dummy_res_store[j]
-                        if comm_machine.status == 'working':
-
-                            edge_index[0].append(i)
-                            edge_index[1].append(j)
+                        edge_index[0].append(i)
+                        edge_index[1].append(j)
+                        # comm_machine = self.proc.dummy_res_store[j]
+                        # if comm_machine.status == 'working':
+                        #
+                        #     edge_index[0].append(i)
+                        #     edge_index[1].append(j)
         return edge_index
 
 
