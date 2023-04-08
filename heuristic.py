@@ -21,10 +21,6 @@ else:
     from torch.utils.tensorboard import SummaryWriter
 
 
-
-
-
-
 map_name1 = cfg.map_name
 GNN = cfg.GNN
 heterogenous = False
@@ -132,17 +128,12 @@ def main():
         output_dir = "output_heuristic/"
     else:
         output_dir = "../output_heuristic/"
-
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-
     log_dir = 'output/logs/'
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
-
     initializer = True
-
-
     agent1 = Agent(num_agent=env1.get_env_info()["n_agents"],
                    feature_size_job=env1.get_env_info()["job_feature_shape"],
                    feature_size_machine=env1.get_env_info()["machine_feature_shape"],
@@ -168,7 +159,7 @@ def main():
     for e in range(num_episode):
         episode_reward, epsilon, t, eval = train(agent1, env1, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, initializer, output_dir)
         initializer = False
-        epi_r.append(episode_reward)
+        epi_r.append(env1.env.now)
         #writer.add_scalar("episode_reward/train", episode_reward, e)
 
         if e % 1 == 0:

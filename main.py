@@ -79,6 +79,8 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
         reward /=200
 
 
+
+
         agent.buffer.memory(node_feature_machine,num_waiting_operations, edge_index_machine, info, reward, done, avail_action, status)
         episode_reward += reward
         # if env.env.now>0:

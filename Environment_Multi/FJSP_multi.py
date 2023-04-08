@@ -199,7 +199,7 @@ class Machine(simpy.Resource):
 
 
 
-        self.reward += -(self.env.now - self.last_recorded_process_for_reward)
+        #self.reward += -(self.env.now - self.last_recorded_process_for_reward)
         #self.reward_record += -(self.env.now - self.last_recorded_process_for_reward) # 여기 확인
         self.last_recorded_idle = self.env.now
         self.last_recorded_idle_for_reward = self.env.now
@@ -227,7 +227,7 @@ class Process:
         if test == False:
             selection = np.random.randint(0, len(problems))
             scheduling_problem = problems[selection]
-            self.scheduling_problem = [int(p) + random.choice([-10,-9,-8,-7,-6,-5,-4,-3,-2, -1, 0, 1, 2,3,4,5,6,7,8,9,10]) for p in scheduling_problem]
+            self.scheduling_problem = [int(p) + random.choice([3,-2, -1, 0, 1, 2,3]) for p in scheduling_problem]
             #self.scheduling_problem = [int(p) for p in scheduling_problem]
 
         print(self.scheduling_problem)
@@ -398,7 +398,7 @@ class Process:
             setup_time = np.random.gamma(shape=(1 / soe) ** 2, scale=(soe ** 2) * setup_time)
             yield self.env.timeout(setup_time)#np.random.gamma(shape=(1 / soe) ** 2, scale=(soe ** 2) * setup_list[a][b]))
             machine.setup_complete_process_start(job)
-            soe = 0.5
+            soe = 0.2
             process_time = np.random.gamma(shape=(1 / soe) ** 2, scale=(soe ** 2) * process_time)
             yield self.env.timeout(process_time)#np.random.uniform(0.8*process_time, 1.2*process_time))
             job.operation_complete()
@@ -879,7 +879,7 @@ class RL_ENV:
                 machine.last_recorded_idle_for_reward = self.env.now
 
             elif machine.status == 'working':
-                machine.reward += -(self.env.now - machine.last_recorded_process_for_reward)
+                #machine.reward += -(self.env.now - machine.last_recorded_process_for_reward)
                 #machine.reward_record += -(self.env.now - machine.last_recorded_process_for_reward)
                 machine.last_recorded_process_for_reward = self.env.now
                 #pass

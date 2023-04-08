@@ -18,7 +18,7 @@ from scipy.sparse import csr_matrix
 
 
 class IQN(nn.Module):
-    def __init__(self, state_size, action_size, batch_size, layer_size=96, N=8):
+    def __init__(self, state_size, action_size, batch_size, layer_size=128, N=8):
         super(IQN, self).__init__()
         self.input_shape = state_size
         self.batch_size = batch_size
@@ -37,13 +37,13 @@ class IQN(nn.Module):
         self.ff_1 = nn.Linear(layer_size, layer_size)
         self.ff_1_bn = nn.BatchNorm1d(layer_size)
 
-        self.ff_2 = nn.Linear(layer_size, 96)
-        self.ff_2_bn = nn.BatchNorm1d(96)
+        self.ff_2 = nn.Linear(layer_size, 196)
+        self.ff_2_bn = nn.BatchNorm1d(196)
 
-        self.ff_3 = nn.Linear(96, 84)
-        self.ff_3_bn = nn.BatchNorm1d(84)
+        self.ff_3 = nn.Linear(196, 128)
+        self.ff_3_bn = nn.BatchNorm1d(128)
 
-        self.ff_4 = nn.Linear(84, 64)
+        self.ff_4 = nn.Linear(128, 64)
         self.ff_4_bn = nn.BatchNorm1d(64)
 
         self.ff_5 = nn.Linear(64, 32)

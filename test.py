@@ -167,7 +167,7 @@ def main():
                    GNN=GNN,
                    teleport_probability = teleport_probability,
                    gtn_beta = gtn_beta)
-    agent1.load_model("../output_dir_random/200000.pt")
+    agent1.load_model("../output_dir_random/160000.pt")
     agent1.eval_check(eval=True)
     t = 0
     epi_r = []
@@ -176,7 +176,7 @@ def main():
         episode_reward, epsilon, t, eval = train(agent1, env1, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, initializer, output_dir)
 
         initializer = False
-        epi_r.append(episode_reward)
+        epi_r.append(env1.env.now)
         #writer.add_scalar("episode_reward/train", episode_reward, e)
 
         if e % 1 == 0:
