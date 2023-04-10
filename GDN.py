@@ -382,7 +382,7 @@ class Agent:
         self.dropout = dropout
         self.gamma = gamma
         self.agent_id = np.eye(self.num_agent).tolist()
-
+        self.agent_index = [i for i in range(self.num_agent)]
         self.max_norm = 10
         self.VDN = VDN().to(device)
         self.VDN_target = VDN().to(device)
@@ -631,7 +631,8 @@ class Agent:
         A.append((edge, value))
         return A
 
-    def cal_Q(self, obs, actions, avail_actions_next, agent_id, cos, target=False):
+    def cal_Q(self, obs, actions, avail_actions_next, agent_id, cos, vdn, target=False):
+
         """
 
         node_representation
@@ -639,27 +640,53 @@ class Agent:
         - action sampling 시 : num_nodes X feature_size
 
         """
-        if target == False:
+        if vdn == True:
+            if target == False:
 
-            obs_n = obs[:, agent_id]
-            q = self.Q(obs_n, cos, mini_batch=True)
-            actions = torch.tensor(actions, device=device).long()
-            act_n = actions[:, agent_id].unsqueeze(1)  # action.shape : (batch_size, 1)
-            q = torch.gather(q, 1, act_n).squeeze(1)  # q.shape :      (batch_size, 1)
-            return q
+                obs_n = obs[:, agent_id]
+                q = self.Q(obs_n, cos, mini_batch=True)
+                actions = torch.tensor(actions, device=device).long()
+                act_n = actions[:, agent_id].unsqueeze(1)  # action.shape : (batch_size, 1)
+                q = torch.gather(q, 1, act_n).squeeze(1)  # q.shape :      (batch_size, 1)
+                return q
+            else:
+                with torch.no_grad():
+
+                    # cos, taus = self.Q_tar.calc_cos(self.batch_size)
+
+                    obs_next = obs
+                    obs_next = obs_next[:, agent_id]
+                    q_tar = self.Q_tar(obs_next, cos, mini_batch=True)  # q.shape :      (batch_size, action_size, 1)
+                    avail_actions_next = torch.tensor(avail_actions_next, device=device).bool()
+                    mask = avail_actions_next[:, agent_id]
+                    q_tar = q_tar.masked_fill(mask == 0, float('-inf'))
+                    q_tar_max = torch.max(q_tar, dim=1)[0]
+                    return q_tar_max
         else:
-            with torch.no_grad():
-
-                # cos, taus = self.Q_tar.calc_cos(self.batch_size)
-
+            if target == False:
+                q = self.Q(obs, cos, mini_batch=True)
+                # q.shape : batch_size, action_size
+                actions = actions.long().to(device)
+                q = torch.gather(q, 1, actions)
+                return q.squeeze(1)
+            else:
                 obs_next = obs
-                obs_next = obs_next[:, agent_id]
-                q_tar = self.Q_tar(obs_next, cos, mini_batch=True)  # q.shape :      (batch_size, action_size, 1)
+                q_tar = self.Q(obs_next, cos, mini_batch=True)
                 avail_actions_next = torch.tensor(avail_actions_next, device=device).bool()
-                mask = avail_actions_next[:, agent_id]
+                mask = avail_actions_next
                 q_tar = q_tar.masked_fill(mask == 0, float('-inf'))
                 q_tar_max = torch.max(q_tar, dim=1)[0]
                 return q_tar_max
+
+
+            # print(obs.shape)
+            # print(rewards.shape)
+            # print(actions.shape)
+            # print(torch.tensor(avail_actions_next).shape)
+            # torch.Size([32, 153])
+            # torch.Size([32])
+            # torch.Size([32])
+            # torch.Size([32, 39])
 
     @torch.no_grad()
     def sample_action(self, node_representation, avail_action, epsilon):
@@ -693,7 +720,7 @@ class Agent:
                 action.append(u)
         return action, utility
 
-    def learn(self, regularizer):
+    def learn(self, regularizer, vdn = False):
 
         # import time
         # start = time.time()
@@ -736,48 +763,113 @@ class Agent:
             edge_indices_machine_next,
             n_node_features_machine,
             mini_batch=True)
-        status = torch.tensor(status, device=device, dtype=torch.float)
-        status_next = torch.tensor(status_next, device=device, dtype=torch.float)
-        dones = torch.tensor(dones, device=device, dtype=torch.float)
-        rewards = torch.tensor(rewards, device=device, dtype=torch.float)
-        cos, taus = self.Q.calc_cos(self.batch_size)
 
-        q = [self.cal_Q(obs=obs,
-                        actions=actions,
-                        avail_actions_next=None,
-                        agent_id=agent_id,
-                        target=False,
-                        cos=cos) for agent_id in range(self.num_agent)]
 
-        q_tar = [self.cal_Q(obs=obs_next,
-                            actions=None,
-                            avail_actions_next=avail_actions_next,
-                            agent_id=agent_id,
-                            target=True,
-                            cos=cos) for agent_id in range(self.num_agent)]
 
-        q_tot = torch.stack(q, dim=1)
-        q_tot_tar = torch.stack(q_tar, dim=1)
+
+
         #print(status/status.sum(dim = 1, keepdims = True))
-        q_tot = q_tot * status/status.sum(dim = 1, keepdims = True)
-        q_tot_tar = q_tot_tar* status_next/status_next.sum(dim = 1, keepdims = True)
-        #print(q_tot.shape, status_next.shape)
-        q_tot = self.VDN(q_tot)
-        q_tot_tar = self.VDN_target(q_tot_tar)
+        if vdn == True:
+            status = torch.tensor(status, device=device, dtype=torch.float)
+            status_next = torch.tensor(status_next, device=device, dtype=torch.float)
+            torch.where(status)
+            dones = torch.tensor(dones, device=device, dtype=torch.float)
+            rewards = torch.tensor(rewards, device=device, dtype=torch.float)
+            cos, taus = self.Q.calc_cos(self.batch_size)
+            q = [self.cal_Q(obs=obs,
+                            actions=actions,
+                            avail_actions_next=None,
+                            agent_id=agent_id,
+                            target=False,
+                            cos=cos) for agent_id in range(self.num_agent)]
+            q_tar = [self.cal_Q(obs=obs_next,
+                                actions=None,
+                                avail_actions_next=avail_actions_next,
+                                agent_id=agent_id,
+                                target=True,
+                                cos=cos) for agent_id in range(self.num_agent)]
+            q_tot = torch.stack(q, dim=1)
+            q_tot_tar = torch.stack(q_tar, dim=1)
+
+            q_tot = q_tot * status/status.sum(dim = 1, keepdims = True)
+            q_tot_tar = q_tot_tar* status_next/status_next.sum(dim = 1, keepdims = True)
+            q_tot = self.VDN(q_tot)
+            q_tot_tar = self.VDN_target(q_tot_tar)
+            td_target = rewards  + self.gamma * (1 - dones) * q_tot_tar
+            loss1 = F.huber_loss(q_tot, td_target.detach())
+            loss = loss1
+            self.optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.eval_params, 1)
+            self.optimizer.step()
+            tau = 1e-3
+            for target_param, local_param in zip(self.Q_tar.parameters(), self.Q.parameters()):
+                target_param.data.copy_(tau * local_param.data + (1 - tau) * target_param.data)
+        else:
+
+            sampled_indexes = [np.random.choice(self.agent_index, p = np.array(sta)/np.sum(sta)) for sta in status]
+            #print(obs.shape, torch.tensor(sampled_indexes, device = device).shape)
+            #print(torch.tensor(sampled_indexes, device = device).unsqueeze(1).unsqueeze(1).long().shape)
+            obs = torch.stack([obs[b, sampled_indexes[b], :] for b in range(self.batch_size)])
+            obs_next = torch.stack([obs_next[b, sampled_indexes[b], :] for b in range(self.batch_size)])
+            rewards = torch.gather(torch.tensor(rewards), 1, torch.tensor(sampled_indexes).long().unsqueeze(1)).to(device)
+            actions = torch.gather(torch.tensor(actions), 1, torch.tensor(sampled_indexes).long().unsqueeze(1))
+            #rewards = torch.tensor([rewards[b][sampled_indexes[b]] for b in range(self.batch_size)]).to(device)
+            #print(rewards.shape, rewards_epi.shape)
+
+            #actions = torch.tensor([actions[b][sampled_indexes[b]] for b in range(self.batch_size)])
+
+            avail_actions_next = torch.tensor([avail_actions_next[b][sampled_indexes[b]] for b in range(self.batch_size)])
+            cos, taus = self.Q.calc_cos(self.batch_size)
 
 
+            # print(obs.shape)
+            # print(rewards.shape)
+            # print(actions.shape)
+            # print(torch.tensor(avail_actions_next).shape)
+            # torch.Size([32, 153])
+            # torch.Size([32])
+            # torch.Size([32])
+            # torch.Size([32, 39])
+            q_tot =self.cal_Q(obs=obs,
+                       actions=actions,
+                       avail_actions_next=None,
+                       agent_id=None,
+                       target=False,
+                       vdn = False,
+                       cos=cos)
 
-        td_target = rewards  + self.gamma * (1 - dones) * q_tot_tar
-        loss1 = F.huber_loss(q_tot, td_target.detach())
-        loss = loss1
+            q_tot_tar =self.cal_Q(obs=obs_next,
+                       actions=None,
+                       avail_actions_next=avail_actions_next,
+                       agent_id=None,
+                       target=True,
+                       vdn=False,
+                       cos=cos)
+            #print(rewards.shape, q_tot.shape, q_tot_tar.shape)
+            # q_tot = q_tot * status/status.sum(dim = 1, keepdims = True)
+            # q_tot_tar = q_tot_tar* status_next/status_next.sum(dim = 1, keepdims = True)
+            """
+            q_tot.shape : batch_size, num_agent
+            rewards.shape : batch_size, num_agent
+            """
+            dones = torch.tensor(dones, device=device, dtype=torch.float)
+            # q_tot = self.VDN(q_tot)
+            # q_tot_tar = self.VDN_target(q_tot_tar)
+            #print((1-dones).unsqueeze(1).shape, q_tot_tar.shape)
 
-        self.optimizer.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.eval_params, 1)
-        self.optimizer.step()
-        tau = 1e-3
-        for target_param, local_param in zip(self.Q_tar.parameters(), self.Q.parameters()):
-            target_param.data.copy_(tau * local_param.data + (1 - tau) * target_param.data)
+            td_target = rewards + self.gamma * (1-dones) * q_tot_tar
+
+
+            loss1 = F.huber_loss(q_tot, td_target.detach())
+            loss = loss1
+            self.optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.eval_params, 1)
+            self.optimizer.step()
+            tau = 1e-3
+            for target_param, local_param in zip(self.Q_tar.parameters(), self.Q.parameters()):
+                target_param.data.copy_(tau * local_param.data + (1 - tau) * target_param.data)
         # for target_param, local_param in zip(self.VDN_target.parameters(), self.VDN.parameters()):
         #     target_param.data.copy_(tau * local_param.data + (1 - tau) * target_param.data)
 

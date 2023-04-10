@@ -49,7 +49,7 @@ spine crawler : 300.00.01.125`
 
 
 
-def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, initializer, output_dir):
+def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, initializer, output_dir, vdn):
 
     env.reset()
     done = False
@@ -75,14 +75,23 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
 
         avail_action = env.get_avail_actions()
         action, utility_list = agent.sample_action(node_representation, avail_action, epsilon)
-        reward, done, info = env.step(action, utility_list)
-        reward /=200
+        reward, done, info = env.step(action, q_values=utility_list, vdn = vdn)
+
+        if vdn == True:
+            reward = reward/200
+        else:
+            reward = [r/200 for r in reward]
+
+
 
 
 
 
         agent.buffer.memory(node_feature_machine,num_waiting_operations, edge_index_machine, info, reward, done, avail_action, status)
-        episode_reward += reward
+        if vdn == True:
+            episode_reward += reward
+        else:
+            episode_reward += np.sum(reward)
         # if env.env.now>0:
         #     print(env.env.now/episode_reward)
 
@@ -105,7 +114,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
 
             st = time.time()
             agent.eval_check(eval = False)
-            loss = agent.learn(regularizer=0)
+            loss = agent.learn(regularizer=0, vdn = vdn)
 
             sum_learn += time.time()-st
             losses.append(loss.detach().item())
@@ -143,6 +152,7 @@ def main():
     anneal_steps = cfg.anneal_steps
     teleport_probability = cfg.teleport_probability
     gtn_beta = cfg.gtn_beta
+    vdn = cfg.vdn
     anneal_epsilon = (epsilon - min_epsilon) / anneal_steps
 
     if vessl_on == True:
@@ -192,7 +202,7 @@ def main():
     epi_r = []
     win_rates = []
     for e in range(num_episode):
-        episode_reward, epsilon, t, eval = train(agent1, env1, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, initializer, output_dir)
+        episode_reward, epsilon, t, eval = train(agent1, env1, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, initializer, output_dir, vdn)
 
         initializer = False
         epi_r.append(episode_reward)

@@ -851,7 +851,7 @@ class RL_ENV:
         self.last_time_step = 0
 
 
-    def step(self, actions, q_values = False):
+    def step(self, actions, vdn, q_values = False):
         self.proc.action = actions
 
 
@@ -870,32 +870,50 @@ class RL_ENV:
         actions_int = [int(a) for a in changed_actions]
         #self.last_action = np.eye(self.n_actions)[np.array(actions_int)]
         self.proc.change = False
-        reward = 0
-        for machine in self.proc.dummy_res_store:
+        if vdn == True:
+            reward = 0
+            for machine in self.proc.dummy_res_store:
+                if machine.status == 'idle':
+                    machine.reward += -(self.env.now - machine.last_recorded_idle_for_reward)
+                    #machine.reward_record += -(self.env.now - machine.last_recorded_idle_for_reward)
+                    machine.last_recorded_idle_for_reward = self.env.now
+                elif machine.status == 'working':
+                    #machine.reward += -(self.env.now - machine.last_recorded_process_for_reward)
+                    #machine.reward_record += -(self.env.now - machine.last_recorded_process_for_reward)
+                    machine.last_recorded_process_for_reward = self.env.now
+                elif machine.status == 'setup':
+                    machine.reward += -(self.env.now - machine.last_recorded_setup_for_reward)
+                    #machine.reward_record += -(self.env.now - machine.last_recorded_setup_for_reward)
+                    machine.last_recorded_setup_for_reward = self.env.now
+                reward += machine.reward
+                machine.reward = 0
 
-            if machine.status == 'idle':
-                machine.reward += -(self.env.now - machine.last_recorded_idle_for_reward)
-                #machine.reward_record += -(self.env.now - machine.last_recorded_idle_for_reward)
-                machine.last_recorded_idle_for_reward = self.env.now
+            for m in range(len(changed_actions)):
+                a = changed_actions[m]
+                self.action_history[m][a] += 1
+        if vdn == False:
+            reward = list()
+            for machine in self.proc.dummy_res_store:
+                if machine.status == 'idle':
+                    machine.reward += -(self.env.now - machine.last_recorded_idle_for_reward)
+                    reward.append(machine.reward)
+                    # machine.reward_record += -(self.env.now - machine.last_recorded_idle_for_reward)
+                    machine.last_recorded_idle_for_reward = self.env.now
 
-            elif machine.status == 'working':
-                #machine.reward += -(self.env.now - machine.last_recorded_process_for_reward)
-                #machine.reward_record += -(self.env.now - machine.last_recorded_process_for_reward)
-                machine.last_recorded_process_for_reward = self.env.now
-                #pass
+                elif machine.status == 'working':
+                    reward.append(0)
+                    machine.last_recorded_process_for_reward = self.env.now
+                    # pass
+                elif machine.status == 'setup':
+                    machine.reward += -(self.env.now - machine.last_recorded_setup_for_reward)
+                    reward.append(machine.reward)
+                    # machine.reward_record += -(self.env.now - machine.last_recorded_setup_for_reward)
+                    machine.last_recorded_setup_for_reward = self.env.now
+                machine.reward = 0
 
-            elif machine.status == 'setup':
-                machine.reward += -(self.env.now - machine.last_recorded_setup_for_reward)
-                #machine.reward_record += -(self.env.now - machine.last_recorded_setup_for_reward)
-                machine.last_recorded_setup_for_reward = self.env.now
-            reward += machine.reward
-
-
-            machine.reward = 0
-
-        for m in range(len(changed_actions)):
-            a = changed_actions[m]
-            self.action_history[m][a] += 1
+            for m in range(len(changed_actions)):
+                a = changed_actions[m]
+                self.action_history[m][a] += 1
 
         return reward, done, changed_actions
 
