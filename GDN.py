@@ -246,9 +246,11 @@ class Replay_Buffer:
         self.buffer[8].append(status)
         self.buffer[9].append(np.sum(status))
 
+
         if self.step_count < self.buffer_size - 1:
             self.step_count_list.append(self.step_count)
             self.step_count += 1
+
 
     def generating_mini_batch(self, datas, batch_idx, cat):
         for s in batch_idx:
@@ -291,11 +293,15 @@ class Replay_Buffer:
         step_count_list = self.step_count_list[:]
         step_count_list.pop()
 
-        one_ratio = self.buffer[9].count(1)/len(self.buffer[9])
+
+        priority_point = list(self.buffer[9])[:]
+        priority_point.pop()
+        one_ratio = priority_point.count(1)/len(priority_point)
         #print(step_count_list)
 
         if np.random.uniform(0, 1) <= one_ratio:
-            sampled_batch_idx =np.random.choice(step_count_list, p = np.array(self.buffer[9])/np.sum(self.buffer[9]), size = self.batch_size)
+            #print(len(step_count_list), (np.array(priority_point)/np.sum(priority_point)).shape)
+            sampled_batch_idx =np.random.choice(step_count_list, p = np.array(priority_point)/np.sum(priority_point), size = self.batch_size)
         else:
             sampled_batch_idx = np.random.choice(step_count_list, size=self.batch_size)
 
@@ -341,7 +347,6 @@ class Replay_Buffer:
 
         status = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='status')
         status = list(status)
-        print(status)
 
 
         status_next = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='status_next')
@@ -682,7 +687,7 @@ class Agent:
             else:
                 obs_next = obs
                 q_tar = self.Q(obs_next, cos, mini_batch=True)
-                avail_actions_next = torch.tensor(avail_actions_next, device=device).bool()
+                avail_actions_next = avail_actions_next.bool()
                 mask = avail_actions_next
                 q_tar = q_tar.masked_fill(mask == 0, float('-inf'))
                 q_tar_max = torch.max(q_tar, dim=1)[0]
@@ -858,9 +863,9 @@ class Agent:
             # q_tot_tar = self.VDN_target(q_tot_tar)
             #print((1-dones).unsqueeze(1).shape, q_tot_tar.shape)
 
-            td_target = rewards + self.gamma * (1-dones) * q_tot_tar
+            td_target = rewards.squeeze(1) + self.gamma * (1-dones) * q_tot_tar
 
-
+            #print(q_tot.shape, rewards.shape, q_tot_tar.shape)
             loss1 = F.huber_loss(q_tot, td_target.detach())
             loss = loss1
             self.optimizer.zero_grad()
