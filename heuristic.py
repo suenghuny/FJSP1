@@ -73,7 +73,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
         avail_action = env.get_avail_actions()
         action,q = agent.sample_action(node_representation, avail_action, epsilon)
 
-        reward, done, info = env.step(action,q)
+        reward, done, info = env.step(action,q_values = q, vdn =True)
         reward /=200
 
         episode_reward += reward

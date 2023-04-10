@@ -687,7 +687,7 @@ class Agent:
             else:
                 obs_next = obs
                 q_tar = self.Q(obs_next, cos, mini_batch=True)
-                avail_actions_next = avail_actions_next.bool()
+                avail_actions_next = avail_actions_next.bool().to(device)
                 mask = avail_actions_next
                 q_tar = q_tar.masked_fill(mask == 0, float('-inf'))
                 q_tar_max = torch.max(q_tar, dim=1)[0]
