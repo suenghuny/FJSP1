@@ -221,7 +221,7 @@ class Replay_Buffer:
         self.buffer = deque()
 
         self.step_count_list = list()
-        for _ in range(9):
+        for _ in range(10):
             self.buffer.append(deque(maxlen=buffer_size))
         self.buffer_size = buffer_size
         self.num_agent = num_agent
@@ -244,6 +244,7 @@ class Replay_Buffer:
         self.buffer[6].append(done)
         self.buffer[7].append(avail_action)
         self.buffer[8].append(status)
+        self.buffer[9].append(np.sum(status))
 
         if self.step_count < self.buffer_size - 1:
             self.step_count_list.append(self.step_count)
@@ -281,14 +282,22 @@ class Replay_Buffer:
             if cat == 'status_next':
                 yield datas[8][s+1]
 
+    #def search_sample_space(self, sampled_batch_idx):
+
+
+
+
     def sample(self):
         step_count_list = self.step_count_list[:]
         step_count_list.pop()
 
-        sampled_batch_idx = random.sample(step_count_list, self.batch_size)
+        one_ratio = self.buffer[9].count(1)/len(self.buffer[9])
+        #print(step_count_list)
 
-        # node_feature_job = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='node_feature_job')
-        # node_features_job = list(node_feature_job)
+        if np.random.uniform(0, 1) <= one_ratio:
+            sampled_batch_idx =np.random.choice(step_count_list, p = np.array(self.buffer[9])/np.sum(self.buffer[9]), size = self.batch_size)
+        else:
+            sampled_batch_idx = np.random.choice(step_count_list, size=self.batch_size)
 
         node_feature_machine = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='node_feature_machine')
         node_features_machine = list(node_feature_machine)
@@ -296,8 +305,7 @@ class Replay_Buffer:
         action = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='action')
         actions = list(action)
 
-        num_waiting_operations = self.generating_mini_batch(self.buffer, sampled_batch_idx,
-                                                            cat='num_waiting_operations')
+        num_waiting_operations = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='num_waiting_operations')
         num_waiting_operations = list(num_waiting_operations)
 
         num_waiting_operations_next = self.generating_mini_batch(self.buffer, sampled_batch_idx,
@@ -333,6 +341,8 @@ class Replay_Buffer:
 
         status = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='status')
         status = list(status)
+        print(status)
+
 
         status_next = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='status_next')
         status_next = list(status_next)
@@ -677,16 +687,6 @@ class Agent:
                 q_tar = q_tar.masked_fill(mask == 0, float('-inf'))
                 q_tar_max = torch.max(q_tar, dim=1)[0]
                 return q_tar_max
-
-
-            # print(obs.shape)
-            # print(rewards.shape)
-            # print(actions.shape)
-            # print(torch.tensor(avail_actions_next).shape)
-            # torch.Size([32, 153])
-            # torch.Size([32])
-            # torch.Size([32])
-            # torch.Size([32, 39])
 
     @torch.no_grad()
     def sample_action(self, node_representation, avail_action, epsilon):
