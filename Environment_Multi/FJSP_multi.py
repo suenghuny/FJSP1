@@ -901,7 +901,6 @@ class RL_ENV:
                     reward.append(machine.reward)
                     # machine.reward_record += -(self.env.now - machine.last_recorded_idle_for_reward)
                     machine.last_recorded_idle_for_reward = self.env.now
-
                 elif machine.status == 'working':
                     reward.append(0)
                     machine.last_recorded_process_for_reward = self.env.now

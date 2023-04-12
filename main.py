@@ -75,23 +75,14 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
 
         avail_action = env.get_avail_actions()
         action, utility_list = agent.sample_action(node_representation, avail_action, epsilon)
-        reward, done, info = env.step(action, q_values=utility_list, vdn = vdn)
-
-        if vdn == True:
-            reward = reward/200
-        else:
-            reward = [r/200 for r in reward]
-
-
+        reward, done, info = env.step(action, q_values = utility_list, vdn = vdn)
+        reward /=200
 
 
 
 
         agent.buffer.memory(node_feature_machine,num_waiting_operations, edge_index_machine, info, reward, done, avail_action, status)
-        if vdn == True:
-            episode_reward += reward
-        else:
-            episode_reward += np.sum(reward)
+        episode_reward += reward
         # if env.env.now>0:
         #     print(env.env.now/episode_reward)
 
@@ -105,21 +96,21 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
         if (t % 5000 == 0) and (t >0):
             eval = True
 
-        if e >= train_start:
 
-            if epsilon >= min_epsilon:
-                epsilon = epsilon - anneal_epsilon
-            else:
-                epsilon = min_epsilon
 
             st = time.time()
             agent.eval_check(eval = False)
-            loss = agent.learn(regularizer=0, vdn = vdn)
+            loss = agent.learn(regularizer=0)
 
             sum_learn += time.time()-st
             losses.append(loss.detach().item())
 
     print(agent.scheduler.get_last_lr()[0])
+    if e >= train_start:
+        if epsilon >= min_epsilon:
+            epsilon = epsilon * 0.999
+        else:
+            epsilon = min_epsilon
     print("Total reward in episode {} = {}, epsilon : {}, time_step : {}, episode_duration : {}, training_duration : {}".format(
                                                                                             e,
                                                                                             np.round(episode_reward, 3),
@@ -152,8 +143,8 @@ def main():
     anneal_steps = cfg.anneal_steps
     teleport_probability = cfg.teleport_probability
     gtn_beta = cfg.gtn_beta
-    vdn = cfg.vdn
     anneal_epsilon = (epsilon - min_epsilon) / anneal_steps
+    vdn = cfg.vdn
 
     if vessl_on == True:
         output_dir = "/output/"

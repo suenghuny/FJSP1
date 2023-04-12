@@ -5,7 +5,7 @@ import argparse
 def get_cfg():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("--vessl", type=bool, default=False, help="vessl AI 사용여부")
-    parser.add_argument("--vdn", type=bool, default=False, help="vdn 여부")
+    parser.add_argument("--vdn", type=bool, default=True, help="vdn")
     parser.add_argument("--map_name", type=str, default='6h_vs_8z', help="map name")
     parser.add_argument("--GNN", type=str, default='GAT', help="map name")
     parser.add_argument("--hidden_size_obs", type=int, default=72, help="GTN 해당")
@@ -23,7 +23,7 @@ def get_cfg():
     parser.add_argument("--n_multi_head", type=int, default=1, help="number of multi head")
     parser.add_argument("--dropout", type=float, default=0.6, help="dropout")
     parser.add_argument("--num_episode", type=int, default=1000000, help="number of episode")
-    parser.add_argument("--train_start", type=int, default=1, help="number of train start")
+    parser.add_argument("--train_start", type=int, default=30, help="number of train start")
     parser.add_argument("--epsilon", type=float, default=0.5, help="initial value of epsilon greedy")
     parser.add_argument("--min_epsilon", type=float, default=0.05, help="minimum value of epsilon greedy")
     parser.add_argument("--anneal_steps", type=int, default=100000, help="anneal ratio of epsilon greedy")
