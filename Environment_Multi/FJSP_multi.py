@@ -877,15 +877,11 @@ class RL_ENV:
             for machine in self.proc.dummy_res_store:
                 if machine.status == 'idle':
                     machine.reward += -(self.env.now - machine.last_recorded_idle_for_reward)
-                    #machine.reward_record += -(self.env.now - machine.last_recorded_idle_for_reward)
                     machine.last_recorded_idle_for_reward = self.env.now
                 elif machine.status == 'working':
-                    #machine.reward += -(self.env.now - machine.last_recorded_process_for_reward)
-                    #machine.reward_record += -(self.env.now - machine.last_recorded_process_for_reward)
                     machine.last_recorded_process_for_reward = self.env.now
                 elif machine.status == 'setup':
                     machine.reward += -(self.env.now - machine.last_recorded_setup_for_reward)
-                    #machine.reward_record += -(self.env.now - machine.last_recorded_setup_for_reward)
                     machine.last_recorded_setup_for_reward = self.env.now
                 reward += machine.reward
                 machine.reward = 0
