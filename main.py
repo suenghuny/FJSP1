@@ -100,7 +100,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
 
             st = time.time()
             agent.eval_check(eval = False)
-            loss = agent.learn(regularizer=0)
+            loss = agent.learn(regularizer=0, vdn = vdn)
 
             sum_learn += time.time()-st
             losses.append(loss.detach().item())
