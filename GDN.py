@@ -786,13 +786,13 @@ class Agent:
                             avail_actions_next=None,
                             agent_id=agent_id,
                             target=False,
-                            cos=cos) for agent_id in range(self.num_agent)]
+                            cos=cos,vdn = vdn) for agent_id in range(self.num_agent)]
             q_tar = [self.cal_Q(obs=obs_next,
                                 actions=None,
                                 avail_actions_next=avail_actions_next,
                                 agent_id=agent_id,
                                 target=True,
-                                cos=cos) for agent_id in range(self.num_agent)]
+                                cos=cos, vdn = vdn) for agent_id in range(self.num_agent)]
             q_tot = torch.stack(q, dim=1)
             q_tot_tar = torch.stack(q_tar, dim=1)
 
