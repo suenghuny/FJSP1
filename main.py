@@ -96,7 +96,11 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
         if (t % 5000 == 0) and (t >0):
             eval = True
 
-
+        if e >= train_start:
+            if epsilon >= min_epsilon:
+                epsilon = epsilon + anneal_epsilon
+            else:
+                epsilon = min_epsilon
 
             st = time.time()
             agent.eval_check(eval = False)
@@ -106,11 +110,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
             losses.append(loss.detach().item())
 
     print(agent.scheduler.get_last_lr()[0])
-    if e >= train_start:
-        if epsilon >= min_epsilon:
-            epsilon = epsilon * 0.999
-        else:
-            epsilon = min_epsilon
+
     print("Total reward in episode {} = {}, epsilon : {}, time_step : {}, episode_duration : {}, training_duration : {}".format(
                                                                                             e,
                                                                                             np.round(episode_reward, 3),

@@ -289,19 +289,21 @@ class Replay_Buffer:
 
 
 
-    def sample(self):
+    def sample(self, vdn):
         step_count_list = self.step_count_list[:]
         step_count_list.pop()
 
+        if vdn == False:
+            priority_point = list(self.buffer[9])[:]
+            priority_point.pop()
+            one_ratio = priority_point.count(1)/len(priority_point)
+            #print(step_count_list)
 
-        priority_point = list(self.buffer[9])[:]
-        priority_point.pop()
-        one_ratio = priority_point.count(1)/len(priority_point)
-        #print(step_count_list)
-
-        if np.random.uniform(0, 1) <= one_ratio:
-            #print(len(step_count_list), (np.array(priority_point)/np.sum(priority_point)).shape)
-            sampled_batch_idx =np.random.choice(step_count_list, p = np.array(priority_point)/np.sum(priority_point), size = self.batch_size)
+            if np.random.uniform(0, 1) <= one_ratio:
+                #print(len(step_count_list), (np.array(priority_point)/np.sum(priority_point)).shape)
+                sampled_batch_idx =np.random.choice(step_count_list, p = np.array(priority_point)/np.sum(priority_point), size = self.batch_size)
+            else:
+                sampled_batch_idx = np.random.choice(step_count_list, size=self.batch_size)
         else:
             sampled_batch_idx = np.random.choice(step_count_list, size=self.batch_size)
 
@@ -729,7 +731,7 @@ class Agent:
 
         # import time
         # start = time.time()
-        node_features_machine, num_waiting_operations, edge_indices_machine, actions, rewards, dones, node_features_machine_next, num_waiting_operations_next, edge_indices_machine_next, avail_actions_next, status, status_next = self.buffer.sample()
+        node_features_machine, num_waiting_operations, edge_indices_machine, actions, rewards, dones, node_features_machine_next, num_waiting_operations_next, edge_indices_machine_next, avail_actions_next, status, status_next = self.buffer.sample(vdn = vdn)
         # print("시간측정 1", time.time()-start)
         # dummy = [0] * self.feature_size_job
 
