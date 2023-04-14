@@ -98,7 +98,7 @@ def train(agent, env, e, t, train_start, epsilon, min_epsilon, anneal_epsilon, i
 
         if e >= train_start:
             if epsilon >= min_epsilon:
-                epsilon = epsilon + anneal_epsilon
+                epsilon = epsilon - anneal_epsilon
             else:
                 epsilon = min_epsilon
 
