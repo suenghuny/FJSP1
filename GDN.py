@@ -18,7 +18,7 @@ from scipy.sparse import csr_matrix
 
 
 class IQN(nn.Module):
-    def __init__(self, state_size, action_size, batch_size, layer_size=128, N=8):
+    def __init__(self, state_size, action_size, batch_size, layer_size=196, N=16):
         super(IQN, self).__init__()
         self.input_shape = state_size
         self.batch_size = batch_size
@@ -46,13 +46,13 @@ class IQN(nn.Module):
         self.ff_4 = nn.Linear(128, 64)
         self.ff_4_bn = nn.BatchNorm1d(64)
 
-        self.ff_5 = nn.Linear(64, 32)
-        self.ff_5_bn = nn.BatchNorm1d(32)
+        self.ff_5 = nn.Linear(64, 64)
+        self.ff_5_bn = nn.BatchNorm1d(64)
 
-        self.ff_6 = nn.Linear(32, 32)
-        self.ff_6_bn = nn.BatchNorm1d(32)
+        self.ff_6 = nn.Linear(64, 64)
+        self.ff_6_bn = nn.BatchNorm1d(64)
 
-        self.ff_7 = nn.Linear(32, action_size)
+        self.ff_7 = nn.Linear(64, action_size)
 
         torch.nn.init.xavier_uniform_(self.ff_1.weight)
         torch.nn.init.xavier_uniform_(self.ff_2.weight)
