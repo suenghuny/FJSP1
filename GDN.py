@@ -18,7 +18,7 @@ from scipy.sparse import csr_matrix
 
 
 class IQN(nn.Module):
-    def __init__(self, state_size, action_size, batch_size, layer_size=196, N=16):
+    def __init__(self, state_size, action_size, batch_size, layer_size=196, N=32):
         super(IQN, self).__init__()
         self.input_shape = state_size
         self.batch_size = batch_size
@@ -37,22 +37,22 @@ class IQN(nn.Module):
         self.ff_1 = nn.Linear(layer_size, layer_size)
         self.ff_1_bn = nn.BatchNorm1d(layer_size)
 
-        self.ff_2 = nn.Linear(layer_size, 196)
-        self.ff_2_bn = nn.BatchNorm1d(196)
+        self.ff_2 = nn.Linear(layer_size, 128)
+        self.ff_2_bn = nn.BatchNorm1d(128)
 
-        self.ff_3 = nn.Linear(196, 128)
-        self.ff_3_bn = nn.BatchNorm1d(128)
+        self.ff_3 = nn.Linear(128, 96)
+        self.ff_3_bn = nn.BatchNorm1d(96)
 
-        self.ff_4 = nn.Linear(128, 64)
+        self.ff_4 = nn.Linear(96, 64)
         self.ff_4_bn = nn.BatchNorm1d(64)
 
         self.ff_5 = nn.Linear(64, 64)
         self.ff_5_bn = nn.BatchNorm1d(64)
 
-        self.ff_6 = nn.Linear(64, 64)
-        self.ff_6_bn = nn.BatchNorm1d(64)
+        # self.ff_6 = nn.Linear(64, 64)
+        # self.ff_6_bn = nn.BatchNorm1d(64)
 
-        self.ff_7 = nn.Linear(64, action_size)
+        self.ff_6 = nn.Linear(64, action_size)
 
         torch.nn.init.xavier_uniform_(self.ff_1.weight)
         torch.nn.init.xavier_uniform_(self.ff_2.weight)
@@ -60,7 +60,7 @@ class IQN(nn.Module):
         torch.nn.init.xavier_uniform_(self.ff_4.weight)
         torch.nn.init.xavier_uniform_(self.ff_5.weight)
         torch.nn.init.xavier_uniform_(self.ff_6.weight)
-        torch.nn.init.xavier_uniform_(self.ff_7.weight)
+        #torch.nn.init.xavier_uniform_(self.ff_7.weight)
 
         # weight_init([self.head_1, self.ff_1])
 
@@ -89,35 +89,35 @@ class IQN(nn.Module):
 
         # batch_size = input.shape[0]
 
-        x = torch.relu(self.head(input.to(device)))  # x의 shape는 batch_size, layer_size
+        x = F.elu(self.head(input.to(device)))  # x의 shape는 batch_size, layer_size
         # cos, taus = self.calc_cos(batch_size)                                             # cos shape (batch, self.N, layer_size)
         cos = cos.view(batch_size * N, self.n_cos)
-        cos_x = torch.relu(self.cos_embedding(cos)).view(batch_size, N, self.layer_size)  # (batch, n_tau, layer)
+        cos_x = F.elu(self.cos_embedding(cos)).view(batch_size, N, self.layer_size)  # (batch, n_tau, layer)
 
         x = (x.unsqueeze(1) * cos_x).view(batch_size * N, self.layer_size)  # 이부분이 phsi * phi에 해당하는 부분
         x = self.ff_1(x)
         x = self.ff_1_bn(x)
-        x = torch.relu(x)
+        x = F.elu(x)
         x = self.ff_2(x)
         x = self.ff_2_bn(x)
-        x = torch.relu(x)
+        x = F.elu(x)
         x = self.ff_3(x)
         x = self.ff_3_bn(x)
-        x = torch.relu(x)
+        x = F.elu(x)
 
         x = self.ff_4(x)
         x = self.ff_4_bn(x)
-        x = torch.relu(x)
+        x = F.elu(x)
 
         x = self.ff_5(x)
         x = self.ff_5_bn(x)
-        x = torch.relu(x)
+        x = F.elu(x)
 
-        x = self.ff_6(x)
-        x = self.ff_6_bn(x)
-        x = torch.relu(x)
-
-        out = self.ff_7(x)
+        out = self.ff_6(x)
+        # x = self.ff_6_bn(x)
+        # x = F.elu(x)
+        #
+        # out = self.ff_7(x)
         quantiles = out.view(batch_size, N, self.action_size)
         q = quantiles.mean(dim=1)
         return q
@@ -162,10 +162,10 @@ class Network(nn.Module):
             obs_and_action = obs_and_action.unsqueeze(0)
         # print(obs_and_action.dim())
 
-        x = F.relu(self.fcn_1bn(self.fcn_1(obs_and_action)))
-        x = F.relu(self.fcn_2bn(self.fcn_2(x)))
-        x = F.relu(self.fcn_3bn(self.fcn_3(x)))
-        x = F.relu(self.fcn_4bn(self.fcn_4(x)))
+        x = F.elu(self.fcn_1bn(self.fcn_1(obs_and_action)))
+        x = F.elu(self.fcn_2bn(self.fcn_2(x)))
+        x = F.elu(self.fcn_3bn(self.fcn_3(x)))
+        x = F.elu(self.fcn_4bn(self.fcn_4(x)))
         q = self.fcn_5(x)
         # q = self.fcn_5(x)
         return q
@@ -185,12 +185,11 @@ class NodeEmbedding(nn.Module):
             self.fcn_1bn = nn.BatchNorm1d(n_agent)
             self.fcn_2bn = nn.BatchNorm1d(n_agent)
             self.fcn_3bn = nn.BatchNorm1d(n_agent)
-        self.fcn_1 = nn.Linear(feature_size, hidden_size + 10)
-        self.fcn_2 = nn.Linear(hidden_size + 10, hidden_size + 10)
+        self.fcn_1 = nn.Linear(feature_size, hidden_size + 15)
+        self.fcn_2 = nn.Linear(hidden_size + 15, hidden_size + 15)
 
-        self.fcn_3 = nn.Linear(hidden_size + 10, hidden_size + 10)
-
-        self.fcn_4 = nn.Linear(hidden_size + 10, n_representation_obs)
+        self.fcn_3 = nn.Linear(hidden_size + 15, hidden_size + 15)
+        self.fcn_4 = nn.Linear(hidden_size + 15, n_representation_obs)
         torch.nn.init.xavier_uniform_(self.fcn_1.weight)
         torch.nn.init.xavier_uniform_(self.fcn_2.weight)
         torch.nn.init.xavier_uniform_(self.fcn_3.weight)
@@ -209,9 +208,9 @@ class NodeEmbedding(nn.Module):
 
         # print(node_feature.shape, machine)
 
-        x = F.relu(self.fcn_1bn(self.fcn_1(node_feature)))
-        x = F.relu(self.fcn_2bn(self.fcn_2(x)))
-        x = F.relu(self.fcn_3bn(self.fcn_3(x)))
+        x = F.elu(self.fcn_1bn(self.fcn_1(node_feature)))
+        x = F.elu(self.fcn_2bn(self.fcn_2(x)))
+        x = F.elu(self.fcn_3bn(self.fcn_3(x)))
         node_representation = self.fcn_4(x)
         return node_representation
 
@@ -425,7 +424,7 @@ class Agent:
             self.func_job_obs = GAT(nfeat=n_representation_job,
                                     nhid=hidden_size_obs,
                                     nheads=n_multi_head,
-                                    nclass=n_representation_job + 10,
+                                    nclass=n_representation_job,
                                     dropout=dropout,
                                     alpha=0.2,
                                     mode='observation',
