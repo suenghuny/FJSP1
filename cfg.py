@@ -11,7 +11,7 @@ def get_cfg():
     parser.add_argument("--hidden_size_obs", type=int, default=96, help="GTN 해당")
     parser.add_argument("--hidden_size_comm", type=int, default=108, help="")
     parser.add_argument("--n_representation_job", type=int, default=72, help="GTN 해당")
-    parser.add_argument("--n_representation_machine", type=int, default=81, help="")
+    parser.add_argument("--n_representation_machine", type=int, default=96, help="")
     parser.add_argument("--hidden_size_Q", type=int, default=128, help="GTN 해당")
     parser.add_argument("--hidden_size_meta_path", type=int, default=42, help="GTN 해당")
     parser.add_argument("--buffer_size", type=int, default=50000, help="")

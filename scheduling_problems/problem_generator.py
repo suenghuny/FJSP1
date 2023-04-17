@@ -57,13 +57,12 @@ for i in range(len(workcenter)):
     for m in workcenter[i]:
         workcenter_name[m] = i
 print(workcenter_name)
-
-
+print(ops_type_list)
 #sp1 = [2, 3, 2, 4, 5, 3, 2, 3, 2, 3, 4,2]
 #sp1 = [2, 1, 1, 1, 3, 1, 1, 1, 4, 1, 1, 1, 1, 4, 2]
 #sp1 = [8, 5, 6, 7]
 #sp1 = [5, 6, 3, 3]
-sp1 = [15]*9
+sp1 = [5]*12
 problems = [sp1]
 # tp1 = [7, 2, 13,2, 8, 10, 2, 8,3,4, 1, 2, 4,4,10]
 # tp2 = [4, 8, 8, 4,3, 3, 6, 5, 6,5, 3, 12, 4, 4, 5]

@@ -43,16 +43,16 @@ class IQN(nn.Module):
         self.ff_3 = nn.Linear(128, 96)
         self.ff_3_bn = nn.BatchNorm1d(96)
 
-        self.ff_4 = nn.Linear(96, 64)
-        self.ff_4_bn = nn.BatchNorm1d(64)
+        self.ff_4 = nn.Linear(96, 81)
+        self.ff_4_bn = nn.BatchNorm1d(81)
 
-        self.ff_5 = nn.Linear(64, 64)
-        self.ff_5_bn = nn.BatchNorm1d(64)
+        self.ff_5 = nn.Linear(81, 81)
+        self.ff_5_bn = nn.BatchNorm1d(81)
 
         # self.ff_6 = nn.Linear(64, 64)
         # self.ff_6_bn = nn.BatchNorm1d(64)
 
-        self.ff_6 = nn.Linear(64, action_size)
+        self.ff_6 = nn.Linear(81, action_size)
 
         torch.nn.init.xavier_uniform_(self.ff_1.weight)
         torch.nn.init.xavier_uniform_(self.ff_2.weight)
