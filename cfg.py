@@ -26,5 +26,5 @@ def get_cfg():
     parser.add_argument("--train_start", type=int, default=30, help="number of train start")
     parser.add_argument("--epsilon", type=float, default=0.5, help="initial value of epsilon greedy")
     parser.add_argument("--min_epsilon", type=float, default=0.01, help="minimum value of epsilon greedy")
-    parser.add_argument("--anneal_steps", type=int, default=70000, help="anneal ratio of epsilon greedy")
+    parser.add_argument("--anneal_steps", type=int, default=100000, help="anneal ratio of epsilon greedy")
     return parser.parse_args()
