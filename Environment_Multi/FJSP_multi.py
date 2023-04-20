@@ -759,8 +759,7 @@ class RL_ENV:
                 first_moment_setup_remain_time = -(machine.last_setup_remain_time - setup_remain_time) / time_delta
             else:
                 first_moment_setup_remain_time = 0
-            # if machine.name == 5:
-            #     print("후3", second_moment_setup, first_moment_setup, machine.last_recorded_first_setup)
+
             if machine.last_process_remain_time != None and time_delta !=0:
                 first_moment_process_remain_time = -(
                             machine.last_process_remain_time - process_remain_time) / time_delta

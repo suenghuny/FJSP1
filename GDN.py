@@ -177,14 +177,13 @@ class NodeEmbedding(nn.Module):
         self.feature_size = feature_size
 
         if machine == True:
-            self.fcn_1bn = nn.BatchNorm1d(n_agent)
-            self.fcn_2bn = nn.BatchNorm1d(n_agent)
-            self.fcn_3bn = nn.BatchNorm1d(n_agent)
-
+            self.fcn_1bn = nn.BatchNorm1d(hidden_size + 15)
+            self.fcn_2bn = nn.BatchNorm1d(hidden_size + 15)
+            self.fcn_3bn = nn.BatchNorm1d(hidden_size + 15)
         else:
-            self.fcn_1bn = nn.BatchNorm1d(n_agent)
-            self.fcn_2bn = nn.BatchNorm1d(n_agent)
-            self.fcn_3bn = nn.BatchNorm1d(n_agent)
+            self.fcn_1bn = nn.BatchNorm1d(hidden_size + 15)
+            self.fcn_2bn = nn.BatchNorm1d(hidden_size + 15)
+            self.fcn_3bn = nn.BatchNorm1d(hidden_size + 15)
         self.fcn_1 = nn.Linear(feature_size, hidden_size + 15)
         self.fcn_2 = nn.Linear(hidden_size + 15, hidden_size + 15)
 
@@ -196,17 +195,7 @@ class NodeEmbedding(nn.Module):
         torch.nn.init.xavier_uniform_(self.fcn_4.weight)
 
     def forward(self, node_feature, machine=False):
-        if machine == False:
 
-            if node_feature.dim() == 2:
-                node_feature = node_feature.unsqueeze(0)
-                # print(node_feature.shape)
-
-        else:
-            if node_feature.dim() == 2:
-                node_feature = node_feature.unsqueeze(0)
-
-        # print(node_feature.shape, machine)
 
         x = F.elu(self.fcn_1bn(self.fcn_1(node_feature)))
         x = F.elu(self.fcn_2bn(self.fcn_2(x)))
@@ -561,13 +550,17 @@ class Agent:
                     # num_waiting_operations = torch.stack(
                     #     [torch.cat([num_waiting_operations, torch.tensor(workcenter_encodes[i])]) for i in
                     #      range(self.num_agent)])
-                    node_embedding_num_waiting_operations = self.node_representation_job_obs(num_waiting_operations)
+                    empty = list()
+                    for i in range(self.num_agent):
+                        agent_data = num_waiting_operations[i, :].unsqueeze(0)
+                        node_embedding_num_waiting_operation = self.node_representation_job_obs(agent_data)
+                        empty.append(node_embedding_num_waiting_operation.squeeze(0))
+                    node_embedding_num_waiting_operations = torch.stack(empty).to(device)
                     node_embedding_machine_obs = self.node_representation(node_feature_machine, machine=True)
                     edge_index_machine = torch.tensor(edge_index_machine, dtype=torch.long, device=device)
                     node_representation = self.func_machine_comm(node_embedding_machine_obs, edge_index_machine,
                                                                  n_node_features_machine, mini_batch=mini_batch)
-                    node_representation = torch.cat(
-                        [node_embedding_num_waiting_operations.squeeze(0), node_representation], dim=1)
+                    node_representation = torch.cat([node_embedding_num_waiting_operations.squeeze(0), node_representation], dim=1)
             else:
 
                 #workcenter_encodes = torch.tensor(node_feature_machine, dtype=torch.float).to(device)[:, :, -2:]
@@ -579,16 +572,33 @@ class Agent:
 
                 # num_waiting_operations = num_waiting_operations.unsqueeze(1).expand(
                 #     [self.batch_size, self.num_agent, num_waiting_operations.shape[1]])
+                #print(num_waiting_operations.shape)
 
                 #num_waiting_operations = torch.cat([num_waiting_operations, workcenter_encodes], dim=2)
 
                 # print(num_waiting_operations.shape)
+                empty = list()
+                empty2 = list()
+                for i in range(self.num_agent):
+                    batch_data_job = num_waiting_operations[:, i, :]
 
-                node_embedding_num_waiting_operations = self.node_representation_job_obs(num_waiting_operations)
+                    node_embedding_num_waiting_operations = self.node_representation_job_obs(batch_data_job)
+                    empty.append(node_embedding_num_waiting_operations)
 
-                node_embedding_machine_obs = self.node_representation(node_feature_machine)
+                    batch_data_machine = node_feature_machine[:, i, :]
 
-                # edge_index_machine = torch.tensor(edge_index_machine, dtype=torch.long, device=device)
+
+                    node_embedding_machine_obs = self.node_representation(batch_data_machine)
+                    empty2.append(node_embedding_machine_obs)
+
+                node_embedding_num_waiting_operations = torch.stack(empty)
+                node_embedding_num_waiting_operations = torch.einsum('ijk->jik', node_embedding_num_waiting_operations)
+
+                node_feature_machine = torch.stack(empty2)
+                node_embedding_machine_obs = torch.einsum('ijk->jik', node_feature_machine)
+
+
+
 
                 node_representation = self.func_machine_comm(node_embedding_machine_obs, edge_index_machine,
                                                              n_node_features_machine,
