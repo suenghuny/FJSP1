@@ -18,7 +18,7 @@ from scipy.sparse import csr_matrix
 
 
 class IQN(nn.Module):
-    def __init__(self, state_size, action_size, batch_size, layer_size=196, N=8):
+    def __init__(self, state_size, action_size, batch_size, layer_size=128, N=8):
         super(IQN, self).__init__()
         self.input_shape = state_size
         self.batch_size = batch_size
@@ -43,16 +43,26 @@ class IQN(nn.Module):
         self.ff_3 = nn.Linear(196, 128)
         self.ff_3_bn = nn.BatchNorm1d(128)
 
-        self.ff_4 = nn.Linear(128, 96)
-        self.ff_4_bn = nn.BatchNorm1d(96)
+        self.ff_4 = nn.Linear(128, 64)
+        self.ff_4_bn = nn.BatchNorm1d(64)
 
-        self.ff_5 = nn.Linear(96, 64)
-        self.ff_5_bn = nn.BatchNorm1d(64)
+        self.ff_5 = nn.Linear(64, 32)
+        self.ff_5_bn = nn.BatchNorm1d(32)
 
-        # self.ff_6 = nn.Linear(64, 64)
-        # self.ff_6_bn = nn.BatchNorm1d(64)
+        self.ff_6 = nn.Linear(32, 32)
+        self.ff_6_bn = nn.BatchNorm1d(32)
 
-        self.ff_6 = nn.Linear(64, action_size)
+        self.ff_7 = nn.Linear(32, action_size)
+
+        torch.nn.init.xavier_uniform_(self.ff_1.weight)
+        torch.nn.init.xavier_uniform_(self.ff_2.weight)
+        torch.nn.init.xavier_uniform_(self.ff_3.weight)
+        torch.nn.init.xavier_uniform_(self.ff_4.weight)
+        torch.nn.init.xavier_uniform_(self.ff_5.weight)
+        torch.nn.init.xavier_uniform_(self.ff_6.weight)
+        torch.nn.init.xavier_uniform_(self.ff_7.weight)
+
+
 
         torch.nn.init.xavier_uniform_(self.ff_1.weight)
         torch.nn.init.xavier_uniform_(self.ff_2.weight)
@@ -90,7 +100,7 @@ class IQN(nn.Module):
         # batch_size = input.shape[0]
 
         x = F.elu(self.head(input.to(device)))  # x의 shape는 batch_size, layer_size
-
+        # cos, taus = self.calc_cos(batch_size)                                             # cos shape (batch, self.N, layer_size)
         cos = cos.view(batch_size * N, self.n_cos)
         cos_x = F.elu(self.cos_embedding(cos)).view(batch_size, N, self.layer_size)  # (batch, n_tau, layer)
 
@@ -113,11 +123,10 @@ class IQN(nn.Module):
         x = self.ff_5_bn(x)
         x = F.elu(x)
 
-        out = self.ff_6(x)
-        # x = self.ff_6_bn(x)
-        # x = F.elu(x)
-        #
-        # out = self.ff_7(x)
+        x = self.ff_6_bn(x)
+        x = F.elu(x)
+
+        out = self.ff_7(x)
         quantiles = out.view(batch_size, N, self.action_size)
         q = quantiles.mean(dim=1)
         return q
@@ -179,7 +188,7 @@ class NodeEmbedding(nn.Module):
         self.fcn_1bn = nn.BatchNorm1d(hidden_size + 15)
         self.fcn_2bn = nn.BatchNorm1d(hidden_size + 15)
         self.fcn_3bn = nn.BatchNorm1d(hidden_size + 15)
-        self.feature_size = feature_size
+
         self.fcn_1 = nn.Linear(feature_size, hidden_size + 15)
         self.fcn_2 = nn.Linear(hidden_size + 15, hidden_size + 15)
 
@@ -191,8 +200,8 @@ class NodeEmbedding(nn.Module):
         torch.nn.init.xavier_uniform_(self.fcn_4.weight)
 
     def forward(self, node_feature, machine=False):
-#
-        #print(self.feature_size, node_feature.shape)
+
+
         x = F.elu(self.fcn_1bn(self.fcn_1(node_feature)))
         x = F.elu(self.fcn_2bn(self.fcn_2(x)))
         x = F.elu(self.fcn_3bn(self.fcn_3(x)))
@@ -289,7 +298,6 @@ class Replay_Buffer:
             else:
                 sampled_batch_idx = np.random.choice(step_count_list, size=self.batch_size)
         else:
-
             sampled_batch_idx = np.random.choice(step_count_list, size=self.batch_size)
 
         node_feature_machine = self.generating_mini_batch(self.buffer, sampled_batch_idx, cat='node_feature_machine')
@@ -394,9 +402,6 @@ class Agent:
         self.batch_size = batch_size
         self.buffer = Replay_Buffer(self.buffer_size, self.batch_size, self.num_agent, self.action_size)
 
-
-
-
         self.action_space = [i for i in range(self.action_size)]
 
         self.GNN = GNN
@@ -408,7 +413,7 @@ class Agent:
 
             self.node_representation = NodeEmbedding(feature_size=feature_size_machine, hidden_size=hidden_size_obs,
                                                      n_representation_obs=n_representation_machine, machine=True,
-                                                     n_agent=self.num_agent).to(device)          # 수정사항
+                                                     n_agent=self.num_agent).to(device)  # 수정사항
 
             self.func_job_obs = GAT(nfeat=n_representation_job,
                                     nhid=hidden_size_obs,
@@ -424,7 +429,7 @@ class Agent:
             self.func_machine_comm = GAT(nfeat=n_representation_machine,
                                          nhid=hidden_size_comm,
                                          nheads=n_multi_head,
-                                         nclass=n_representation_machine ,
+                                         nclass=n_representation_machine + 5,
                                          dropout=dropout,
                                          alpha=0.2,
                                          mode='observation',
@@ -432,9 +437,9 @@ class Agent:
                                          batch_size=self.batch_size,
                                          teleport_probability=self.teleport_probability).to(device)  # 수정사항
 
-            self.Q = IQN(n_representation_machine , self.action_size,
+            self.Q = IQN(n_representation_job + n_representation_machine + 5, self.action_size,
                          batch_size=self.batch_size).to(device)
-            self.Q_tar = IQN(n_representation_machine , self.action_size,
+            self.Q_tar = IQN(n_representation_job + n_representation_machine + 5, self.action_size,
                              batch_size=self.batch_size).to(device)
             # Network(n_representation_job+n_representation_machine+5, hidden_size_Q).to(device)
             # self.Q_tar = Network(n_representation_job+n_representation_machine+5, hidden_size_Q, self.action_size).to(device)
@@ -539,13 +544,13 @@ class Agent:
 
 
 
-                    # num_waiting_operations = torch.tensor(num_waiting_operations, dtype=torch.float, device=device)
-                    # empty = list()
-                    # for i in range(self.num_agent):
-                    #     agent_data = num_waiting_operations[i, :].unsqueeze(0)
-                    #     node_embedding_num_waiting_operation = self.node_representation_job_obs(agent_data)
-                    #     empty.append(node_embedding_num_waiting_operation.squeeze(0))
-                    # node_embedding_num_waiting_operations = torch.stack(empty).to(device)
+                    num_waiting_operations = torch.tensor(num_waiting_operations, dtype=torch.float, device=device)
+                    empty = list()
+                    for i in range(self.num_agent):
+                        agent_data = num_waiting_operations[i, :].unsqueeze(0)
+                        node_embedding_num_waiting_operation = self.node_representation_job_obs(agent_data)
+                        empty.append(node_embedding_num_waiting_operation.squeeze(0))
+                    node_embedding_num_waiting_operations = torch.stack(empty).to(device)
 
 
                     node_feature_machine = torch.tensor(node_feature_machine,dtype=torch.float,device=device)
@@ -557,14 +562,20 @@ class Agent:
                                                                  n_node_features_machine, mini_batch=mini_batch)
 
 
-                    #node_representation = torch.cat([node_embedding_num_waiting_operations.squeeze(0), node_representation], dim=1)
+                    node_representation = torch.cat([node_embedding_num_waiting_operations.squeeze(0), node_representation], dim=1)
             else:
                 node_feature_machine = torch.tensor(node_feature_machine, dtype=torch.float).to(device)
-                #num_waiting_operations = torch.tensor(num_waiting_operations,dtype=torch.float,).to(device)
+                num_waiting_operations = torch.tensor(num_waiting_operations,dtype=torch.float,).to(device)
 
                 empty = list()
                 empty2 = list()
                 for i in range(self.num_agent):
+                    batch_data_job = num_waiting_operations[:, i, :]
+                    node_embedding_num_waiting_operations = self.node_representation_job_obs(batch_data_job)
+
+
+                    empty.append(node_embedding_num_waiting_operations)
+
                     batch_data_machine = node_feature_machine[:, i, :]
                     node_embedding_machine_obs = self.node_representation(batch_data_machine)
                     empty2.append(node_embedding_machine_obs)
@@ -572,8 +583,8 @@ class Agent:
 
 
 
-                # node_embedding_num_waiting_operations = torch.stack(empty)
-                # node_embedding_num_waiting_operations = torch.einsum('ijk->jik', node_embedding_num_waiting_operations)
+                node_embedding_num_waiting_operations = torch.stack(empty)
+                node_embedding_num_waiting_operations = torch.einsum('ijk->jik', node_embedding_num_waiting_operations)
 
                 node_feature_machine = torch.stack(empty2)
                 node_embedding_machine_obs = torch.einsum('ijk->jik', node_feature_machine)
@@ -582,7 +593,7 @@ class Agent:
                                                              n_node_features_machine,
                                                              mini_batch=mini_batch)
 
-
+                node_representation = torch.cat([node_embedding_num_waiting_operations, node_representation], dim=2)
                 """
                 node_representation 
                 - training 시        : batch_size X num_nodes X feature_size 
@@ -641,15 +652,13 @@ class Agent:
         - training 시        : batch_size X num_nodes X feature_size
         - action sampling 시 : num_nodes X feature_size
         """
-
         if vdn == True:
             if target == False:
                 obs_n = obs[:, agent_id]
                 q = self.Q(obs_n, cos, mini_batch=True)
                 actions = torch.tensor(actions, device=device).long()
                 act_n = actions[:, agent_id].unsqueeze(1)  # action.shape : (batch_size, 1)
-
-                q = torch.gather(q, 1, act_n).squeeze(1)   # q.shape :      (batch_size, 1)
+                q = torch.gather(q, 1, act_n).squeeze(1)  # q.shape :      (batch_size, 1)
                 return q
             else:
                 with torch.no_grad():
@@ -696,11 +705,10 @@ class Agent:
 
             greedy_u = torch.argmax(Q)
 
-            # print(Q)
-
             mask_n = np.array(avail_action[n], dtype=np.float64)
             if np.random.uniform(0, 1) >= epsilon:
                 u = greedy_u
+                u = u.detach().item()
                 utility.append(Q[0][u].detach().item())
                 action.append(u)
             else:
@@ -714,6 +722,23 @@ class Agent:
         # import time
         # start = time.time()
         node_features_machine, num_waiting_operations, edge_indices_machine, actions, rewards, dones, node_features_machine_next, num_waiting_operations_next, edge_indices_machine_next, avail_actions_next, status, status_next = self.buffer.sample(vdn = vdn)
+        # print("시간측정 1", time.time()-start)
+        # dummy = [0] * self.feature_size_job
+
+        # max_job_length = np.max([np.max([len(nfj) for nfj in node_features_job]), np.max([len(nfj) for nfj in node_features_job_next])])
+        # import time
+        # start = time.time()
+        # for nfj in node_features_job:
+        #     if len(nfj) <= max_job_length:
+        #         for j in range(max_job_length- len(nfj)):
+        #             nfj.append(dummy)
+        #
+        # for nfj in node_features_job_next:
+        #     if len(nfj) <= max_job_length:
+        #         for j in range(max_job_length- len(nfj)):
+        #             nfj.append(dummy)
+
+        # remain_duration = time.time() - start
 
         """
         node_features : batch_size x num_nodes x feature_size
@@ -764,7 +789,7 @@ class Agent:
             q_tot_tar = torch.stack(q_tar, dim=1)
 
             q_tot = q_tot * status/status.sum(dim = 1, keepdims = True)
-            q_tot_tar = q_tot_tar * status_next/status_next.sum(dim = 1, keepdims = True)
+            q_tot_tar = q_tot_tar* status_next/status_next.sum(dim = 1, keepdims = True)
             q_tot = self.VDN(q_tot)
             q_tot_tar = self.VDN_target(q_tot_tar)
             td_target = rewards  + self.gamma * (1 - dones) * q_tot_tar
@@ -772,7 +797,7 @@ class Agent:
             loss = loss1
             self.optimizer.zero_grad()
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.eval_params, 10)
+            torch.nn.utils.clip_grad_norm_(self.eval_params, 1)
             self.optimizer.step()
             tau = 1e-3
             for target_param, local_param in zip(self.Q_tar.parameters(), self.Q.parameters()):
@@ -818,15 +843,21 @@ class Agent:
                        target=True,
                        vdn=False,
                        cos=cos)
-
+            #print(rewards.shape, q_tot.shape, q_tot_tar.shape)
+            # q_tot = q_tot * status/status.sum(dim = 1, keepdims = True)
+            # q_tot_tar = q_tot_tar* status_next/status_next.sum(dim = 1, keepdims = True)
             """
             q_tot.shape : batch_size, num_agent
             rewards.shape : batch_size, num_agent
             """
             dones = torch.tensor(dones, device=device, dtype=torch.float)
+            # q_tot = self.VDN(q_tot)
+            # q_tot_tar = self.VDN_target(q_tot_tar)
+            #print((1-dones).unsqueeze(1).shape, q_tot_tar.shape)
 
             td_target = rewards.squeeze(1) + self.gamma * (1-dones) * q_tot_tar
 
+            #print(q_tot.shape, rewards.shape, q_tot_tar.shape)
             loss1 = F.huber_loss(q_tot, td_target.detach())
             loss = loss1
             self.optimizer.zero_grad()
@@ -840,4 +871,3 @@ class Agent:
         #     target_param.data.copy_(tau * local_param.data + (1 - tau) * target_param.data)
 
         return loss
-
