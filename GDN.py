@@ -18,7 +18,7 @@ from scipy.sparse import csr_matrix
 
 
 class IQN(nn.Module):
-    def __init__(self, state_size, action_size, batch_size, layer_size=196, N=32):
+    def __init__(self, state_size, action_size, batch_size, layer_size=128, N=8):
         super(IQN, self).__init__()
         self.input_shape = state_size
         self.batch_size = batch_size
@@ -37,22 +37,22 @@ class IQN(nn.Module):
         self.ff_1 = nn.Linear(layer_size, layer_size)
         self.ff_1_bn = nn.BatchNorm1d(layer_size)
 
-        self.ff_2 = nn.Linear(layer_size, 128)
-        self.ff_2_bn = nn.BatchNorm1d(128)
+        self.ff_2 = nn.Linear(layer_size, 196)
+        self.ff_2_bn = nn.BatchNorm1d(196)
 
-        self.ff_3 = nn.Linear(128, 96)
-        self.ff_3_bn = nn.BatchNorm1d(96)
+        self.ff_3 = nn.Linear(196, 128)
+        self.ff_3_bn = nn.BatchNorm1d(128)
 
-        self.ff_4 = nn.Linear(96, 81)
-        self.ff_4_bn = nn.BatchNorm1d(81)
+        self.ff_4 = nn.Linear(128, 64)
+        self.ff_4_bn = nn.BatchNorm1d(64)
 
-        self.ff_5 = nn.Linear(81, 81)
-        self.ff_5_bn = nn.BatchNorm1d(81)
+        self.ff_5 = nn.Linear(64, 32)
+        self.ff_5_bn = nn.BatchNorm1d(32)
 
         # self.ff_6 = nn.Linear(64, 64)
         # self.ff_6_bn = nn.BatchNorm1d(64)
 
-        self.ff_6 = nn.Linear(81, action_size)
+        self.ff_6 = nn.Linear(32, action_size)
 
         torch.nn.init.xavier_uniform_(self.ff_1.weight)
         torch.nn.init.xavier_uniform_(self.ff_2.weight)
@@ -83,7 +83,7 @@ class IQN(nn.Module):
         """
         if mini_batch == False:
             batch_size = 1
-            input = input.unsqueeze(0)
+            #input = input.unsqueeze(0)
         else:
             batch_size = self.batch_size
 
@@ -176,14 +176,10 @@ class NodeEmbedding(nn.Module):
         super(NodeEmbedding, self).__init__()
         self.feature_size = feature_size
 
-        if machine == True:
-            self.fcn_1bn = nn.BatchNorm1d(hidden_size + 15)
-            self.fcn_2bn = nn.BatchNorm1d(hidden_size + 15)
-            self.fcn_3bn = nn.BatchNorm1d(hidden_size + 15)
-        else:
-            self.fcn_1bn = nn.BatchNorm1d(hidden_size + 15)
-            self.fcn_2bn = nn.BatchNorm1d(hidden_size + 15)
-            self.fcn_3bn = nn.BatchNorm1d(hidden_size + 15)
+        self.fcn_1bn = nn.BatchNorm1d(hidden_size + 15)
+        self.fcn_2bn = nn.BatchNorm1d(hidden_size + 15)
+        self.fcn_3bn = nn.BatchNorm1d(hidden_size + 15)
+
         self.fcn_1 = nn.Linear(feature_size, hidden_size + 15)
         self.fcn_2 = nn.Linear(hidden_size + 15, hidden_size + 15)
 
@@ -446,6 +442,7 @@ class Agent:
                                list(self.node_representation.parameters()) + \
                                list(self.func_job_obs.parameters()) + \
                                list(self.func_machine_comm.parameters())
+
         if self.GNN == 'FastGTN':
             self.Q = Network(
                 hidden_size_meta_path +
@@ -536,60 +533,46 @@ class Agent:
             if mini_batch == False:
                 with torch.no_grad():
 
-                    #workcenter_encodes = torch.tensor(node_feature_machine, dtype=torch.float).to(device)[:, -2:]
-
-                    node_feature_machine = torch.tensor(node_feature_machine,
-                                                        dtype=torch.float,
-                                                        device=device)
-
-                    num_waiting_operations = torch.tensor(num_waiting_operations,
-                                                          dtype=torch.float,
-                                                          device=device)
 
 
-                    # num_waiting_operations = torch.stack(
-                    #     [torch.cat([num_waiting_operations, torch.tensor(workcenter_encodes[i])]) for i in
-                    #      range(self.num_agent)])
+                    num_waiting_operations = torch.tensor(num_waiting_operations, dtype=torch.float, device=device)
                     empty = list()
                     for i in range(self.num_agent):
                         agent_data = num_waiting_operations[i, :].unsqueeze(0)
                         node_embedding_num_waiting_operation = self.node_representation_job_obs(agent_data)
                         empty.append(node_embedding_num_waiting_operation.squeeze(0))
                     node_embedding_num_waiting_operations = torch.stack(empty).to(device)
+
+
+                    node_feature_machine = torch.tensor(node_feature_machine,dtype=torch.float,device=device)
                     node_embedding_machine_obs = self.node_representation(node_feature_machine, machine=True)
+
+
                     edge_index_machine = torch.tensor(edge_index_machine, dtype=torch.long, device=device)
                     node_representation = self.func_machine_comm(node_embedding_machine_obs, edge_index_machine,
                                                                  n_node_features_machine, mini_batch=mini_batch)
+
+
                     node_representation = torch.cat([node_embedding_num_waiting_operations.squeeze(0), node_representation], dim=1)
             else:
-
-                #workcenter_encodes = torch.tensor(node_feature_machine, dtype=torch.float).to(device)[:, :, -2:]
-
                 node_feature_machine = torch.tensor(node_feature_machine, dtype=torch.float).to(device)
-                num_waiting_operations = torch.tensor(num_waiting_operations,
-                                                      dtype=torch.float,
-                                                      ).to(device)
+                num_waiting_operations = torch.tensor(num_waiting_operations,dtype=torch.float,).to(device)
 
-                # num_waiting_operations = num_waiting_operations.unsqueeze(1).expand(
-                #     [self.batch_size, self.num_agent, num_waiting_operations.shape[1]])
-                #print(num_waiting_operations.shape)
-
-                #num_waiting_operations = torch.cat([num_waiting_operations, workcenter_encodes], dim=2)
-
-                # print(num_waiting_operations.shape)
                 empty = list()
                 empty2 = list()
                 for i in range(self.num_agent):
                     batch_data_job = num_waiting_operations[:, i, :]
-
                     node_embedding_num_waiting_operations = self.node_representation_job_obs(batch_data_job)
+
+
                     empty.append(node_embedding_num_waiting_operations)
 
                     batch_data_machine = node_feature_machine[:, i, :]
-
-
                     node_embedding_machine_obs = self.node_representation(batch_data_machine)
                     empty2.append(node_embedding_machine_obs)
+
+
+
 
                 node_embedding_num_waiting_operations = torch.stack(empty)
                 node_embedding_num_waiting_operations = torch.einsum('ijk->jik', node_embedding_num_waiting_operations)
@@ -597,19 +580,16 @@ class Agent:
                 node_feature_machine = torch.stack(empty2)
                 node_embedding_machine_obs = torch.einsum('ijk->jik', node_feature_machine)
 
-
-
-
                 node_representation = self.func_machine_comm(node_embedding_machine_obs, edge_index_machine,
                                                              n_node_features_machine,
                                                              mini_batch=mini_batch)
-                node_representation = torch.cat([node_embedding_num_waiting_operations, node_representation], dim=2)
 
-            """
-            node_representation 
-            - training 시        : batch_size X num_nodes X feature_size 
-            - action sampling 시 : num_nodes X feature_size
-            """
+                node_representation = torch.cat([node_embedding_num_waiting_operations, node_representation], dim=2)
+                """
+                node_representation 
+                - training 시        : batch_size X num_nodes X feature_size 
+                - action sampling 시 : num_nodes X feature_size
+                """
         if self.GNN == 'FastGTN':
             if mini_batch == False:
                 with torch.no_grad():
@@ -658,17 +638,13 @@ class Agent:
         return A
 
     def cal_Q(self, obs, actions, avail_actions_next, agent_id, cos, vdn, target=False):
-
         """
-
         node_representation
         - training 시        : batch_size X num_nodes X feature_size
         - action sampling 시 : num_nodes X feature_size
-
         """
         if vdn == True:
             if target == False:
-
                 obs_n = obs[:, agent_id]
                 q = self.Q(obs_n, cos, mini_batch=True)
                 actions = torch.tensor(actions, device=device).long()
@@ -677,9 +653,6 @@ class Agent:
                 return q
             else:
                 with torch.no_grad():
-
-                    # cos, taus = self.Q_tar.calc_cos(self.batch_size)
-
                     obs_next = obs
                     obs_next = obs_next[:, agent_id]
                     q_tar = self.Q_tar(obs_next, cos, mini_batch=True)  # q.shape :      (batch_size, action_size, 1)
@@ -691,7 +664,6 @@ class Agent:
         else:
             if target == False:
                 q = self.Q(obs, cos, mini_batch=True)
-                # q.shape : batch_size, action_size
                 actions = actions.long().to(device)
                 q = torch.gather(q, 1, actions)
                 return q.squeeze(1)
@@ -718,6 +690,7 @@ class Agent:
 
         for n in range(self.num_agent):
             obs = node_representation[n]
+            obs = obs.unsqueeze(0)
             Q = self.Q(obs, cos, mini_batch=False)
             Q = Q.masked_fill(mask[n, :] == 0, float('-inf'))
 
