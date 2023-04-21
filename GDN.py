@@ -62,18 +62,6 @@ class IQN(nn.Module):
         torch.nn.init.xavier_uniform_(self.ff_6.weight)
         torch.nn.init.xavier_uniform_(self.ff_7.weight)
 
-
-
-        torch.nn.init.xavier_uniform_(self.ff_1.weight)
-        torch.nn.init.xavier_uniform_(self.ff_2.weight)
-        torch.nn.init.xavier_uniform_(self.ff_3.weight)
-        torch.nn.init.xavier_uniform_(self.ff_4.weight)
-        torch.nn.init.xavier_uniform_(self.ff_5.weight)
-        torch.nn.init.xavier_uniform_(self.ff_6.weight)
-        #torch.nn.init.xavier_uniform_(self.ff_7.weight)
-
-        # weight_init([self.head_1, self.ff_1])
-
     def calc_cos(self, batch_size):
         """
         Calculating the cosinus values depending on the number of tau samples
@@ -99,32 +87,33 @@ class IQN(nn.Module):
 
         # batch_size = input.shape[0]
 
-        x = F.elu(self.head(input.to(device)))  # x의 shape는 batch_size, layer_size
+        x = torch.relu(self.head(input.to(device)))  # x의 shape는 batch_size, layer_size
         # cos, taus = self.calc_cos(batch_size)                                             # cos shape (batch, self.N, layer_size)
         cos = cos.view(batch_size * N, self.n_cos)
-        cos_x = F.elu(self.cos_embedding(cos)).view(batch_size, N, self.layer_size)  # (batch, n_tau, layer)
+        cos_x = torch.relu(self.cos_embedding(cos)).view(batch_size, N, self.layer_size)  # (batch, n_tau, layer)
 
         x = (x.unsqueeze(1) * cos_x).view(batch_size * N, self.layer_size)  # 이부분이 phsi * phi에 해당하는 부분
         x = self.ff_1(x)
         x = self.ff_1_bn(x)
-        x = F.elu(x)
+        x = torch.relu(x)
         x = self.ff_2(x)
         x = self.ff_2_bn(x)
-        x = F.elu(x)
+        x = torch.relu(x)
         x = self.ff_3(x)
         x = self.ff_3_bn(x)
-        x = F.elu(x)
+        x = torch.relu(x)
 
         x = self.ff_4(x)
         x = self.ff_4_bn(x)
-        x = F.elu(x)
+        x = torch.relu(x)
 
         x = self.ff_5(x)
         x = self.ff_5_bn(x)
-        x = F.elu(x)
+        x = torch.relu(x)
 
+        x = self.ff_6(x)
         x = self.ff_6_bn(x)
-        x = F.elu(x)
+        x = torch.relu(x)
 
         out = self.ff_7(x)
         quantiles = out.view(batch_size, N, self.action_size)
@@ -705,10 +694,11 @@ class Agent:
 
             greedy_u = torch.argmax(Q)
 
+            # print(Q)
+
             mask_n = np.array(avail_action[n], dtype=np.float64)
             if np.random.uniform(0, 1) >= epsilon:
                 u = greedy_u
-                u = u.detach().item()
                 utility.append(Q[0][u].detach().item())
                 action.append(u)
             else:

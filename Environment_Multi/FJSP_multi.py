@@ -485,15 +485,13 @@ class RL_ENV:
         self.prev_time = 0
         self.n_agents = num_machines
         self.n_actions = len(ops_name_list) + 1
-        #self.last_action = np.zeros((self.n_agents, self.n_actions))
+        self.last_action = np.zeros((self.n_agents, self.n_actions))
         ## observation 나타내기 위함
         self.setup = np.eye(num_ops)
         self.current_working = np.eye(num_ops+1)
         self.status = np.eye(3)
         self.agent_id = np.eye(num_machines)
         self.event_log = list()
-        self.action_encoding = np.eye(self.n_actions)
-        self.last_action = [-1]*self.n_agents
 
         self.last_time_step = 0
 
@@ -522,7 +520,7 @@ class RL_ENV:
         num_agents = num_machines
         env_info = {"n_agents" : num_machines,
                     "job_feature_shape": sum(ops_length_list)+1+len(workcenter),  # + self.n_agents,
-                    "machine_feature_shape" : 8+num_job_type + len(ops_name_list)+1+len(ops_name_list)+1, #9 + num_jobs + max_ops_length+ len(workcenter)+3+len(ops_name_list) + 1+3-12, # + self.n_agents,
+                    "machine_feature_shape" : 3+ 8+num_job_type + len(ops_name_list)+1, #9 + num_jobs + max_ops_length+ len(workcenter)+3+len(ops_name_list) + 1+3-12, # + self.n_agents,
                     "n_actions": len(ops_name_list) + 1
                     }
         print(env_info)
@@ -778,8 +776,7 @@ class RL_ENV:
             first_moment_setup_remain_time = first_moment_setup_remain_time
             machine.last_setup_remain_time = setup_remain_time
             machine.last_process_remain_time = process_remain_time
-            action_encoding = np.eye(self.n_actions)[self.last_action[i]]
-
+            # if machine.name == 5:
             if self.env.now == 0:
                 if num_total_action== 0:
                     # node_feature = np.concatenate([np.array([0, 0, 0]), setup, self.action_history[i],
@@ -789,9 +786,11 @@ class RL_ENV:
                                                                  first_moment_setup,
                                                                  first_moment_process,
 
-
+                                                             second_moment_idle,
+                                                             second_moment_setup,
+                                                             second_moment_process,
                                                                  setup_remain_time,
-                                                                 process_remain_time]), setup, self.action_history[i], action_encoding])
+                                                                 process_remain_time]), setup, self.action_history[i]])
                 else:
                     # node_feature = np.concatenate([np.array([0, 0, 0]), setup,
                     #                                np.array(self.action_history[i]) / num_total_action,
@@ -801,9 +800,12 @@ class RL_ENV:
                                                              first_moment_setup,
                                                              first_moment_process,
 
+                                                             second_moment_idle,
+                                                             second_moment_setup,
+                                                             second_moment_process,
                                                              setup_remain_time,
                                                              process_remain_time]), setup,
-                                                   np.array(self.action_history[i])/num_total_action, action_encoding])
+                                                   np.array(self.action_history[i])/num_total_action])
 
             else:
                 # node_feature = np.concatenate([np.array([machine.idle_history/self.env.now,
@@ -816,8 +818,11 @@ class RL_ENV:
                                                              first_moment_setup,
                                                              first_moment_process,
 
+                                                         second_moment_idle,
+                                                         second_moment_setup,
+                                                         second_moment_process,
                                                              setup_remain_time,
-                                                             process_remain_time]), setup, np.array(self.action_history[i])/num_total_action, action_encoding])
+                                                             process_remain_time]), setup, np.array(self.action_history[i])/num_total_action])
 
             node_features.append(node_feature)
         self.last_time_step = self.env.now
@@ -829,14 +834,14 @@ class RL_ENV:
         return node_features, num_waiting_operations, self.get_edge_index_machine_machine(), status
 
     def reset(self):
-        self.last_action = [-1] * self.n_agents
+
         self.env = simpy.Environment()
         self.reward = 0
         self.proc = Process(self.env, mode = self.mode, RL_ENV = self)
         self.prev_time = 0
         self.n_agents = num_machines
         self.n_actions = len(ops_name_list) + 1
-        #self.last_action = np.zeros((self.n_agents, self.n_actions))
+        self.last_action = np.zeros((self.n_agents, self.n_actions))
         ## observation 나타내기 위함
         self.setup = np.eye(num_ops)
         self.current_working = np.eye(num_ops+1)
@@ -849,7 +854,6 @@ class RL_ENV:
 
     def step(self, actions, vdn, q_values = False):
         self.proc.action = actions
-        self.last_action = actions
 
 
         for m in self.proc.dummy_res_store:
