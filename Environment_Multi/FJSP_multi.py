@@ -485,15 +485,19 @@ class RL_ENV:
         self.prev_time = 0
         self.n_agents = num_machines
         self.n_actions = len(ops_name_list) + 1
-        self.last_action = np.zeros((self.n_agents, self.n_actions))
+        #self.last_action = np.zeros((self.n_agents, self.n_actions))
         ## observation 나타내기 위함
         self.setup = np.eye(num_ops)
         self.current_working = np.eye(num_ops+1)
         self.status = np.eye(3)
         self.agent_id = np.eye(num_machines)
         self.event_log = list()
-
         self.last_time_step = 0
+
+
+        self.action_encoding = np.eye(self.n_actions)
+        self.last_action = [-1]*self.n_agents
+
 
         self.action_history = [[0 for i in range(num_ops+1)] for _ in range(num_machines)]
 
@@ -520,7 +524,7 @@ class RL_ENV:
         num_agents = num_machines
         env_info = {"n_agents" : num_machines,
                     "job_feature_shape": sum(ops_length_list)+1+len(workcenter),  # + self.n_agents,
-                    "machine_feature_shape" : 3+ 8+num_job_type + len(ops_name_list)+1, #9 + num_jobs + max_ops_length+ len(workcenter)+3+len(ops_name_list) + 1+3-12, # + self.n_agents,
+                    "machine_feature_shape" : len(workcenter)+8+num_job_type + len(ops_name_list)+1+len(ops_name_list)+1+len(ops_name_list)+1, #3+ 8+num_job_type + len(ops_name_list)+1, #9 + num_jobs + max_ops_length+ len(workcenter)+3+len(ops_name_list) + 1+3-12, # + self.n_agents,
                     "n_actions": len(ops_name_list) + 1
                     }
         print(env_info)
@@ -646,18 +650,16 @@ class RL_ENV:
         node_features = list()
         workcenter_encodes = np.eye(len(workcenter))
         self.waiting_ops = [j.operations[0].idx for j in self.proc.waiting_job_store.items]
-        num_waiting_operations = [self.waiting_ops.count(ops)/self.proc.production_list[flatten_all_ops_list[ops_name_list.index(ops)].job_type]
-                                    if ops in self.waiting_ops else 0 for ops in ops_name_list]
+
+        num_waiting_operations = [self.waiting_ops.count(ops)/self.proc.production_list[flatten_all_ops_list[ops_name_list.index(ops)].job_type] if ops in self.waiting_ops else 0 for ops in ops_name_list]
+
+
         num_waiting_operations.append(time_delta/120)
 
         status = [0]*self.n_agents
         waiting_ops_list = list()
         for i in range(self.n_agents):
             machine = self.proc.dummy_res_store[i]
-            waiting_ops = deepcopy(num_waiting_operations)
-
-            waiting_ops_list.append(np.concatenate([num_waiting_operations,workcenter_encodes[machine.workcenter]]))
-            waiting_ops.append(num_waiting_operations)
             num_total_action = sum(self.action_history[i])
             if machine.status == 'setup':
                 k = 0
@@ -671,7 +673,7 @@ class RL_ENV:
                     first_moment_process = 0
                     first_moment_setup = 0
                     first_moment_idle = 0
-                setup_remain_time = (machine.current_setup_time_abs - self.env.now)/machine.current_setup_time
+                setup_remain_time = np.max([(machine.current_setup_time_abs - self.env.now)/machine.current_setup_time, 0])
                 process_remain_time = 1
                 machine.last_recorded_setup = self.env.now
             if machine.status == 'working':
@@ -689,7 +691,7 @@ class RL_ENV:
                     first_moment_idle = 0
 
                 setup_remain_time = 0
-                process_remain_time = (machine.current_process_time_abs - self.env.now)/machine.current_process_time
+                process_remain_time = np.max([(machine.current_process_time_abs - self.env.now)/machine.current_process_time, 0])
 
                 machine.last_recorded_process = self.env.now
             if machine.status == 'idle':
@@ -776,36 +778,35 @@ class RL_ENV:
             first_moment_setup_remain_time = first_moment_setup_remain_time
             machine.last_setup_remain_time = setup_remain_time
             machine.last_process_remain_time = process_remain_time
-            # if machine.name == 5:
+
+
+            last_action = self.action_encoding[self.last_action[i]]
+            #print(setup_remain_time)
+            #print(self.last_action[i], last_action)
+            #print(sum(num_waiting_operations[:-1]))
+            #print(workcenter)
+
             if self.env.now == 0:
                 if num_total_action== 0:
-                    # node_feature = np.concatenate([np.array([0, 0, 0]), setup, self.action_history[i],
-                    #                                workcenter_encodes[machine.workcenter]])
                     node_feature = np.concatenate([np.array([0,0,0,
                                                                  first_moment_idle,
                                                                  first_moment_setup,
                                                                  first_moment_process,
 
-                                                             second_moment_idle,
-                                                             second_moment_setup,
-                                                             second_moment_process,
                                                                  setup_remain_time,
-                                                                 process_remain_time]), setup, self.action_history[i]])
+                                                                 process_remain_time]), setup, self.action_history[i], last_action, num_waiting_operations, workcenter_encodes[machine.workcenter]])
                 else:
-                    # node_feature = np.concatenate([np.array([0, 0, 0]), setup,
-                    #                                np.array(self.action_history[i]) / num_total_action,
-                    #                                workcenter_encodes[machine.workcenter]])
+                    # "machine_feature_shape" : 8+num_job_type + len(ops_name_list)+1+len(ops_name_list)+1+len(ops_name_list)
+
+                    #8 + num_job_type + len(ops_name_list) + 1 + len(ops_name_list) + 1 + len(ops_name_list)
+                    #print(",", last_action, num_waiting_operations)
                     node_feature = np.concatenate([np.array([0, 0, 0,
                                                              first_moment_idle,
                                                              first_moment_setup,
                                                              first_moment_process,
-
-                                                             second_moment_idle,
-                                                             second_moment_setup,
-                                                             second_moment_process,
                                                              setup_remain_time,
                                                              process_remain_time]), setup,
-                                                   np.array(self.action_history[i])/num_total_action])
+                                                   np.array(self.action_history[i])/num_total_action, last_action, num_waiting_operations, workcenter_encodes[machine.workcenter]])
 
             else:
                 # node_feature = np.concatenate([np.array([machine.idle_history/self.env.now,
@@ -817,16 +818,13 @@ class RL_ENV:
                                                              first_moment_idle,
                                                              first_moment_setup,
                                                              first_moment_process,
-
-                                                         second_moment_idle,
-                                                         second_moment_setup,
-                                                         second_moment_process,
                                                              setup_remain_time,
-                                                             process_remain_time]), setup, np.array(self.action_history[i])/num_total_action])
+                                                             process_remain_time]), setup, np.array(self.action_history[i])/num_total_action, last_action, num_waiting_operations, workcenter_encodes[machine.workcenter]])
 
             node_features.append(node_feature)
         self.last_time_step = self.env.now
         #print(np.array(waiting_ops_list).shape)
+
         return node_features, waiting_ops_list, status
 
     def get_heterogeneous_graph(self):
@@ -841,7 +839,8 @@ class RL_ENV:
         self.prev_time = 0
         self.n_agents = num_machines
         self.n_actions = len(ops_name_list) + 1
-        self.last_action = np.zeros((self.n_agents, self.n_actions))
+        self.last_action = [-1] * self.n_agents
+        #self.last_action = np.zeros((self.n_agents, self.n_actions))
         ## observation 나타내기 위함
         self.setup = np.eye(num_ops)
         self.current_working = np.eye(num_ops+1)
@@ -854,6 +853,8 @@ class RL_ENV:
 
     def step(self, actions, vdn, q_values = False):
         self.proc.action = actions
+
+        self.last_action = actions
 
 
         for m in self.proc.dummy_res_store:
