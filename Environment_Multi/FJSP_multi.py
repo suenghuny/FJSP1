@@ -520,7 +520,7 @@ class RL_ENV:
         num_agents = num_machines
         env_info = {"n_agents" : num_machines,
                     "job_feature_shape": sum(ops_length_list)+len(workcenter),  # + self.n_agents,
-                    "machine_feature_shape" : 3+ 8+num_job_type + len(ops_name_list)+1+len(workcenter), #9 + num_jobs + max_ops_length+ len(workcenter)+3+len(ops_name_list) + 1+3-12, # + self.n_agents,
+                    "machine_feature_shape" : 3+ 2+num_job_type + len(ops_name_list)+1+len(workcenter), #9 + num_jobs + max_ops_length+ len(workcenter)+3+len(ops_name_list) + 1+3-12, # + self.n_agents,
                     "n_actions": len(ops_name_list) + 1
                     }
         print(env_info)
@@ -799,13 +799,6 @@ class RL_ENV:
                     #                                workcenter_encodes[machine.workcenter]])
 
                     node_feature = np.concatenate([np.array([0,0,0,
-                                                                 first_moment_idle,
-                                                                 first_moment_setup,
-                                                                 first_moment_process,
-
-                                                             second_moment_idle,
-                                                             second_moment_setup,
-                                                             second_moment_process,
                                                                  setup_remain_time,
                                                                  process_remain_time]), setup, self.action_history[i], workcenter_encodes[machine.workcenter]])
                 else:
@@ -813,13 +806,7 @@ class RL_ENV:
                     #                                np.array(self.action_history[i]) / num_total_action,
                     #                                workcenter_encodes[machine.workcenter]])
                     node_feature = np.concatenate([np.array([0, 0, 0,
-                                                             first_moment_idle,
-                                                             first_moment_setup,
-                                                             first_moment_process,
 
-                                                             second_moment_idle,
-                                                             second_moment_setup,
-                                                             second_moment_process,
                                                              setup_remain_time,
                                                              process_remain_time]), setup,
                                                    np.array(self.action_history[i])/num_total_action, workcenter_encodes[machine.workcenter]])
@@ -831,13 +818,7 @@ class RL_ENV:
                 node_feature = np.concatenate([np.array([machine.idle_history/self.env.now,
                                         machine.setup_history/self.env.now,
                                                              machine.process_history/self.env.now,
-                                                             first_moment_idle,
-                                                             first_moment_setup,
-                                                             first_moment_process,
 
-                                                         second_moment_idle,
-                                                         second_moment_setup,
-                                                         second_moment_process,
                                                              setup_remain_time,
                                                              process_remain_time]), setup, np.array(self.action_history[i])/num_total_action, workcenter_encodes[machine.workcenter]])
 
