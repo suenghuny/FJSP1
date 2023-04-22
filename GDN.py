@@ -49,10 +49,7 @@ class IQN(nn.Module):
         self.ff_5 = nn.Linear(64, 32)
         self.ff_5_bn = nn.BatchNorm1d(32)
 
-        self.ff_6 = nn.Linear(32, 32)
-        self.ff_6_bn = nn.BatchNorm1d(32)
-
-        self.ff_7 = nn.Linear(32, action_size)
+        self.ff_6 = nn.Linear(32, action_size)
 
         torch.nn.init.xavier_uniform_(self.ff_1.weight)
         torch.nn.init.xavier_uniform_(self.ff_2.weight)
@@ -60,7 +57,6 @@ class IQN(nn.Module):
         torch.nn.init.xavier_uniform_(self.ff_4.weight)
         torch.nn.init.xavier_uniform_(self.ff_5.weight)
         torch.nn.init.xavier_uniform_(self.ff_6.weight)
-        torch.nn.init.xavier_uniform_(self.ff_7.weight)
 
     def calc_cos(self, batch_size):
         """
@@ -111,11 +107,10 @@ class IQN(nn.Module):
         x = self.ff_5_bn(x)
         x = torch.relu(x)
 
-        x = self.ff_6(x)
-        x = self.ff_6_bn(x)
-        x = torch.relu(x)
-
-        out = self.ff_7(x)
+        out = self.ff_6(x)
+        # x = self.ff_6_bn(x)
+        # x = torch.relu(x)
+        #out = self.ff_7(x)
         quantiles = out.view(batch_size, N, self.action_size)
         q = quantiles.mean(dim=1)
         return q
